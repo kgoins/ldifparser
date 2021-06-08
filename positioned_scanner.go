@@ -1,4 +1,4 @@
-package ldifwriter
+package ldifparser
 
 import (
 	"bufio"

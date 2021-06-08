@@ -1,4 +1,4 @@
-package ldifwriter
+package ldifparser
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"github.com/kgoins/entityfilter/entityfilter/filter"
 	"github.com/kgoins/entityfilter/entityfilter/matcher/entitymatcher"
 	"github.com/kgoins/ldapentity/entity"
-	"github.com/kgoins/ldifwriter/entitybuilder"
+	"github.com/kgoins/ldifparser/entitybuilder"
 )
 
 // LdifReader constructs LDAP Entities from an ldif file.

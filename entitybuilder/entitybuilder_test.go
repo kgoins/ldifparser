@@ -3,7 +3,7 @@ package entitybuilder_test
 import (
 	"testing"
 
-	"github.com/kgoins/ldifwriter/entitybuilder"
+	"github.com/kgoins/ldifparser/entitybuilder"
 )
 
 func TestAttribute_BuildFromValidLine(t *testing.T) {

@@ -1,11 +1,11 @@
-package ldifwriter
+package ldifparser
 
 import (
 	"regexp"
 
 	"github.com/kgoins/entityfilter/entityfilter/filter"
-	"github.com/kgoins/ldifwriter/entitybuilder"
-	"github.com/kgoins/ldifwriter/internal"
+	"github.com/kgoins/ldifparser/entitybuilder"
+	"github.com/kgoins/ldifparser/internal"
 )
 
 const LDAPMaxLineSize int = 1024 * 1024 * 10

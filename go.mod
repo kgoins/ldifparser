@@ -1,4 +1,4 @@
-module github.com/kgoins/ldifwriter
+module github.com/kgoins/ldifparser
 
 go 1.16
 
