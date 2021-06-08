@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/icza/backscanner"
-	hashset "github.com/kgoins/hashset/pkg"
+	"github.com/kgoins/entityfilter/entityfilter/filter"
+	"github.com/kgoins/entityfilter/entityfilter/matcher/entitymatcher"
 	"github.com/kgoins/ldapentity/entity"
+	"github.com/kgoins/ldifwriter/entitybuilder"
 )
 
 // LdifReader constructs LDAP Entities from an ldif file.
@@ -33,13 +35,13 @@ func NewLdifReader(filename string, conf ...ReaderConf) LdifReader {
 
 // SetEntityFilter modifies the r to return only entities matching
 // the attribute / value pairs in the filter.
-func (r *LdifReader) SetEntityFilter(filter []IEntityFilter) {
-	r.EntityFilter = filter
+func (r *LdifReader) SetEntityFilter(filter []filter.EntityFilter) {
+	r.Filter = filter
 }
 
 // SetAttributeFilter modifies the r to return only the ldap
 // attributes present in the filter on entites that are parsed.
-func (r *LdifReader) SetAttributeFilter(filter hashset.StrHashset) {
+func (r *LdifReader) SetAttributeFilter(filter entitybuilder.AttributeFilter) {
 	r.AttributeFilter = filter
 }
 
@@ -54,7 +56,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 		entityLines = append(entityLines, entityBlock.Text())
 	}
 
-	return entity.BuildEntityFromAttrList(entityLines, &r.AttributeFilter)
+	return entitybuilder.BuildFromAttrList(entityLines, r.AttributeFilter)
 }
 
 func (r LdifReader) findFirstEntityBlock(dumpFile *os.File) *bufio.Scanner {
@@ -92,7 +94,7 @@ func (r LdifReader) getNextEntityBlock(scanner *PositionedScanner) (*PositionedS
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
-func (r LdifReader) getKeyAttrOffset(file *os.File, keyAttr entity.EntityAttribute) (int64, error) {
+func (r LdifReader) getKeyAttrOffset(file *os.File, keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(keyAttr.Stringify()[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
@@ -166,6 +168,18 @@ func (r LdifReader) BuildEntity(keyAttrName string, keyAttrVal string) (e entity
 	return r.getEntityFromBlock(entityScanner)
 }
 
+func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
+	inputs := []entity.Entity{e}
+	matcher := entitymatcher.NewEntityMatcher(inputs)
+
+	matches, err := matcher.GetMatches(r.Filter...)
+	if err != nil {
+		return false, err
+	}
+
+	return len(matches) > 0, nil
+}
+
 // BuildEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) error {
 	r.Logger.Info("Opening ldif file: " + r.filename)
@@ -202,11 +216,15 @@ func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) e
 				continue
 			}
 
-			if r.EntityFilter != nil && len(r.EntityFilter) > 0 {
-				r.Logger.Info("Applying entity filter to: " + dn)
-				if !MatchesFilter(entity, r.EntityFilter) {
-					continue
-				}
+			r.Logger.Info("Applying entity filter to: " + dn)
+			entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
+			if matchErr != nil {
+				r.Logger.Error(matchErr.Error())
+				continue
+			}
+
+			if !entityHasMatchedFilter {
+				continue
 			}
 
 			r.Logger.Info("Appending matched entity: " + dn)
