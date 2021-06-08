@@ -1,2 +1,2 @@
-# ldifwriter
+# ldifparser
 An LDIF reader/writer
