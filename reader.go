@@ -3,24 +3,33 @@ package ldifparser
 import (
 	"bufio"
 	"errors"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/icza/backscanner"
+
 	"github.com/kgoins/entityfilter/entityfilter/filter"
 	"github.com/kgoins/entityfilter/entityfilter/matcher/entitymatcher"
+
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser/entitybuilder"
 )
 
+type ReadSeekerAt struct {
+	io.ReadSeeker
+	io.ReaderAt
+}
+
 // LdifReader constructs LDAP Entities from an ldif file.
 type LdifReader struct {
-	filename string
+	input ReadSeekerAt
 	ReaderConf
 }
 
-// NewLdifReader returns a constructed LdifEntityBuilder with null filters.
-func NewLdifReader(filename string, conf ...ReaderConf) LdifReader {
+// NewLdifReader returns a constructed LdifReader.
+// The ReadSeekerAt input requirement ensures that the input implements both
+// io.ReaderAt and io.ReadSeeker.
+func NewLdifReader(input ReadSeekerAt, conf ...ReaderConf) LdifReader {
 	var actualConf ReaderConf
 	if len(conf) == 0 {
 		actualConf = NewReaderConf()
@@ -28,7 +37,7 @@ func NewLdifReader(filename string, conf ...ReaderConf) LdifReader {
 	actualConf = conf[0]
 
 	return LdifReader{
-		filename:   filename,
+		input:      input,
 		ReaderConf: actualConf,
 	}
 }
@@ -59,8 +68,8 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	return entitybuilder.BuildFromAttrList(entityLines, r.AttributeFilter)
 }
 
-func (r LdifReader) findFirstEntityBlock(dumpFile *os.File) *bufio.Scanner {
-	scanner := bufio.NewScanner(dumpFile)
+func (r LdifReader) findFirstEntityBlock() *bufio.Scanner {
+	scanner := bufio.NewScanner(r.input)
 	buf := make([]byte, 0, r.ScannerBufferSize)
 	scanner.Buffer(buf, r.ScannerBufferSize)
 
@@ -81,24 +90,12 @@ func (r LdifReader) isEntitySeparator(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
-// Iterates the input scanner until an entity block is found.
-// Returns false if the end of the input stream was reached.
-func (r LdifReader) getNextEntityBlock(scanner *PositionedScanner) (*PositionedScanner, bool) {
-	for scanner.Scan() {
-		if r.isEntityTitle(scanner.Text()) {
-			return scanner, false
-		}
-	}
-
-	return nil, true
-}
-
 // getKeyAddrOffset returns -1 if the entity is not found
-func (r LdifReader) getKeyAttrOffset(file *os.File, keyAttr entity.Attribute) (int64, error) {
+func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := NewPositionedScanner(file)
+	scanner := NewPositionedScanner(r.input)
 
 	for scanner.Scan() {
 		attrLine := strings.ToLower(scanner.Text())
@@ -112,8 +109,8 @@ func (r LdifReader) getKeyAttrOffset(file *os.File, keyAttr entity.Attribute) (i
 	return -1, scanner.scanner.Err()
 }
 
-func (r LdifReader) getPrevEntityOffset(file *os.File, lineOffset int64) (int, error) {
-	scanner := backscanner.New(file, int(lineOffset))
+func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
+	scanner := backscanner.New(input, int(lineOffset))
 	for {
 		line, pos, err := scanner.Line()
 		if err != nil {
@@ -129,42 +126,35 @@ func (r LdifReader) getPrevEntityOffset(file *os.File, lineOffset int64) (int, e
 // BuildEntity returns an empty Entity object if the object is not found,
 // other wise it returns the entity object or an error if one is encountered.
 func (r LdifReader) BuildEntity(keyAttrName string, keyAttrVal string) (e entity.Entity, err error) {
-	r.Logger.Info("Opening ldif file: " + r.filename)
-	dumpFile, err := os.Open(r.filename)
-	if err != nil {
-		return
-	}
-	defer dumpFile.Close()
-
 	keyAttr := entity.NewEntityAttribute(keyAttrName, keyAttrVal)
 
-	keyAttrOffset, err := r.getKeyAttrOffset(dumpFile, keyAttr)
+	keyAttrOffset, err := r.getKeyAttrOffset(keyAttr)
 	if err != nil {
 		return
 	}
-	r.Logger.Debug("Key found at position: %d", keyAttrOffset)
+	r.Logger.Debug("key found at position: %d", keyAttrOffset)
 
 	// Object not found
 	if keyAttrOffset == -1 {
 		return
 	}
 
-	entityOffset, err := r.getPrevEntityOffset(dumpFile, keyAttrOffset)
+	entityOffset, err := r.getPrevEntityOffset(r.input, keyAttrOffset)
 	if err != nil {
 		return
 	}
-	r.Logger.Info("Entity found at position: %d", entityOffset)
+	r.Logger.Info("entity found at position: %d", entityOffset)
 
-	_, err = dumpFile.Seek(int64(entityOffset), 0)
+	_, err = r.input.Seek(int64(entityOffset), 0)
 	if err != nil {
 		return
 	}
 
-	entityScanner := bufio.NewScanner(dumpFile)
+	entityScanner := bufio.NewScanner(r.input)
 	buf := make([]byte, r.ScannerBufferSize)
 	entityScanner.Buffer(buf, r.ScannerBufferSize)
 
-	r.Logger.Info("Parsing entity from block")
+	r.Logger.Info("parsing entity from block")
 	return r.getEntityFromBlock(entityScanner)
 }
 
@@ -182,17 +172,10 @@ func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
 
 // BuildEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) error {
-	r.Logger.Info("Opening ldif file: " + r.filename)
-	dumpFile, err := os.Open(r.filename)
-	if err != nil {
-		return err
-	}
-	defer dumpFile.Close()
-
 	r.Logger.Info("Finding first entity block")
-	entityScanner := r.findFirstEntityBlock(dumpFile)
+	entityScanner := r.findFirstEntityBlock()
 	if entityScanner == nil {
-		return errors.New("Unable to find first entity block")
+		return errors.New("unable to find first entity block")
 	}
 
 	go func(r LdifReader, entities chan entity.Entity, scanner *bufio.Scanner) {
@@ -231,6 +214,7 @@ func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) e
 			entities <- entity
 		}
 	}(r, entities, entityScanner)
+
 	<-done
-	return err
+	return nil
 }
