@@ -28,7 +28,7 @@ func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
 	}
 }
 
-func TestEntityBuilder_BuildFromAttrListNoInclude(t *testing.T) {
+func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 	r := require.New(t)
 
 	attrLines := []string{
@@ -39,7 +39,7 @@ func TestEntityBuilder_BuildFromAttrListNoInclude(t *testing.T) {
 		"cn: MYPC",
 	}
 
-	e, err := entitybuilder.BuildFromAttrList(attrLines, nil)
+	e, err := entitybuilder.BuildEntity(attrLines, nil)
 	r.NoError(err)
 
 	r.False(e.IsEmpty())
@@ -48,4 +48,15 @@ func TestEntityBuilder_BuildFromAttrListNoInclude(t *testing.T) {
 	cnAttr, found := e.GetSingleValuedAttribute("cn")
 	r.True(found)
 	r.Equal(cnAttr, "MYPC")
+}
+
+func TestEntityBuilder_BuildFromAttrList_MalformedTitle(t *testing.T) {
+	r := require.New(t)
+
+	attrLines := []string{
+		"# MYPC, ContosoUsers, contoso.com",
+	}
+
+	_, err := entitybuilder.BuildEntity(attrLines, nil)
+	r.Error(err)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser/entitybuilder"
+	"github.com/kgoins/ldifparser/internal"
 )
 
 type ReadSeekerAt interface {
@@ -84,10 +85,6 @@ func (r LdifReader) findFirstEntityBlock() *bufio.Scanner {
 	return nil
 }
 
-func (r LdifReader) isEntityTitle(line string) bool {
-	return r.TitleLineRegex.MatchString(line)
-}
-
 func (r LdifReader) isEntitySeparator(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
@@ -119,7 +116,7 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 			return pos, err
 		}
 
-		if r.isEntityTitle(line) {
+		if internal.IsEntityTitle(line) {
 			return pos, nil
 		}
 	}
@@ -190,7 +187,7 @@ func (r LdifReader) buildEntitiesFromScanner(entities chan entity.Entity, scanne
 	defer close(entities)
 	for scanner.Scan() {
 		titleLine := scanner.Text()
-		if !r.isEntityTitle(titleLine) {
+		if !internal.IsEntityTitle(titleLine) {
 			continue
 		}
 

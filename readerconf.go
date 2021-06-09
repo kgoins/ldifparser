@@ -1,8 +1,6 @@
 package ldifparser
 
 import (
-	"regexp"
-
 	"github.com/kgoins/entityfilter/entityfilter/filter"
 	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/kgoins/ldifparser/internal"
@@ -16,18 +14,15 @@ type ReaderConf struct {
 	Filter          []filter.EntityFilter
 	AttributeFilter entitybuilder.AttributeFilter
 
-	TitleLineRegex    *regexp.Regexp
 	ScannerBufferSize int
 }
 
 func NewReaderConf() ReaderConf {
-	regex, _ := regexp.Compile(`^# .*\.`)
 
 	return ReaderConf{
 		Logger:            internal.NewNopLogger(),
 		Filter:            []filter.EntityFilter{},
 		AttributeFilter:   entitybuilder.NewAttributeFilter(),
-		TitleLineRegex:    regex,
 		ScannerBufferSize: LDAPMaxLineSize,
 	}
 }

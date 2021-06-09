@@ -6,6 +6,7 @@ import (
 
 	hashset "github.com/kgoins/hashset/pkg"
 	"github.com/kgoins/ldapentity/entity"
+	"github.com/kgoins/ldifparser/internal"
 )
 
 func BuildAttribute(name string, initValue string) entity.Attribute {
@@ -31,8 +32,11 @@ func BuildAttributeFromLine(attrLine string) (entity.Attribute, error) {
 func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (entity.Entity, error) {
 	entity := entity.NewEntity()
 
-	hasAttrFilter := len(includeAttrs) > 0
-	attrFilter := includeAttrs[0]
+	hasAttrFilter := len(includeAttrs) > 0 && includeAttrs[0] != nil
+	var attrFilter AttributeFilter
+	if hasAttrFilter {
+		attrFilter = includeAttrs[0]
+	}
 
 	// Ensure that we always pull a DN if possible
 	if hasAttrFilter {
@@ -43,7 +47,11 @@ func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (entity.
 	for _, line := range entityLines {
 		attr, err := BuildAttributeFromLine(line)
 		if err != nil {
-			continue
+			if internal.IsEntityTitle(line) {
+				continue
+			}
+
+			return entity, err
 		}
 
 		if !hasAttrFilter {
