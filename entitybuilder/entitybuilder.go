@@ -24,27 +24,20 @@ func BuildAttributeFromLine(attrLine string) (entity.Attribute, error) {
 	return BuildAttribute(lineParts[0], lineParts[1]), nil
 }
 
-// BuildEntity is a wrapper for BuildEntityFromAttrList
-// that doesn't require an attribute filter and returns all entities.
-func BuildEntity(entityLines []string) (entity.Entity, error) {
-	return BuildFromAttrList(
-		entityLines,
-		nil,
-	)
-}
-
-// BuildFromAttrList will construct an Entity from a list of attribute strings
+// BuildEntity will construct an Entity from a list of attribute strings
 // and filter out all attributes not in `includeAttrs`.
 // Either a null or empty HashSetStr value in `includeAttrs` will include all attributes.
 // The `includeAttrs` argument must contain lowercase string values.
-func BuildFromAttrList(entityLines []string, includeAttrs AttributeFilter) (entity.Entity, error) {
+func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (entity.Entity, error) {
 	entity := entity.NewEntity()
-	hasAttrFilter := (includeAttrs != nil) && !includeAttrs.IsEmpty()
+
+	hasAttrFilter := len(includeAttrs) > 0
+	attrFilter := includeAttrs[0]
 
 	// Ensure that we always pull a DN if possible
 	if hasAttrFilter {
-		includeAttrs.Add("dn")
-		includeAttrs.Add("distinguishedname")
+		attrFilter.Add("dn")
+		attrFilter.Add("distinguishedname")
 	}
 
 	for _, line := range entityLines {
@@ -56,7 +49,7 @@ func BuildFromAttrList(entityLines []string, includeAttrs AttributeFilter) (enti
 		if !hasAttrFilter {
 			entity.AddAttribute(attr)
 		} else {
-			if includeAttrs.Contains(strings.ToLower(attr.Name)) {
+			if attrFilter.Contains(strings.ToLower(attr.Name)) {
 				entity.AddAttribute(attr)
 			}
 		}

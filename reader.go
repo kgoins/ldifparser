@@ -67,7 +67,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 		entityLines = append(entityLines, line)
 	}
 
-	return entitybuilder.BuildFromAttrList(entityLines, r.AttributeFilter)
+	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
 func (r LdifReader) findFirstEntityBlock() *bufio.Scanner {

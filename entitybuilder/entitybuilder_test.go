@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kgoins/ldifparser/entitybuilder"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
@@ -27,6 +28,24 @@ func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
 	}
 }
 
-// func TestEntityBuilder_BuildFromAttrList(t *testing.T) {
-// 	r := require.New(t)
-// }
+func TestEntityBuilder_BuildFromAttrListNoInclude(t *testing.T) {
+	r := require.New(t)
+
+	attrLines := []string{
+		"# MYPC, ContosoUsers, contoso.com",
+		"dn: CN=MYPC,OU=ContosoUsers,DC=contoso,DC=com",
+		"objectClass: top",
+		"objectClass: computer",
+		"cn: MYPC",
+	}
+
+	e, err := entitybuilder.BuildFromAttrList(attrLines, nil)
+	r.NoError(err)
+
+	r.False(e.IsEmpty())
+	r.Equal(3, e.Size())
+
+	cnAttr, found := e.GetSingleValuedAttribute("cn")
+	r.True(found)
+	r.Equal(cnAttr, "MYPC")
+}
