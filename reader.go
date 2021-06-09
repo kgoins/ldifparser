@@ -95,7 +95,7 @@ func (r LdifReader) getNextEntityBlock(scanner *PositionedScanner) (*PositionedS
 
 // getKeyAddrOffset returns -1 if the entity is not found
 func (r LdifReader) getKeyAttrOffset(file *os.File, keyAttr entity.Attribute) (int64, error) {
-	keyAttrStr := strings.ToLower(keyAttr.Stringify()[0])
+	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
 	scanner := NewPositionedScanner(file)
