@@ -6,7 +6,7 @@ import (
 	"github.com/kgoins/ldifparser/entitybuilder"
 )
 
-func TestAttribute_BuildFromValidLine(t *testing.T) {
+func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
 	attrLine := "userAccountControl: 66048"
 
 	attr, err := entitybuilder.BuildAttributeFromLine(attrLine)
@@ -26,3 +26,7 @@ func TestAttribute_BuildFromValidLine(t *testing.T) {
 		t.Fatalf("Failed to parse attr value")
 	}
 }
+
+// func TestEntityBuilder_BuildFromAttrList(t *testing.T) {
+// 	r := require.New(t)
+// }

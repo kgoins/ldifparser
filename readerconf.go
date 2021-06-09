@@ -24,6 +24,7 @@ func NewReaderConf() ReaderConf {
 	regex, _ := regexp.Compile(`^# .*\.`)
 
 	return ReaderConf{
+		Logger:            internal.NewNopLogger(),
 		Filter:            []filter.EntityFilter{},
 		AttributeFilter:   entitybuilder.NewAttributeFilter(),
 		TitleLineRegex:    regex,

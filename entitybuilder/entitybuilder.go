@@ -64,7 +64,7 @@ func BuildFromAttrList(entityLines []string, includeAttrs AttributeFilter) (enti
 
 	_, found := entity.GetDN()
 	if !found {
-		return entity, errors.New("Unable to parse object DN")
+		return entity, errors.New("unable to parse object DN")
 	}
 
 	return entity, nil

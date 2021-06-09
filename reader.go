@@ -15,7 +15,7 @@ import (
 	"github.com/kgoins/ldifparser/entitybuilder"
 )
 
-type ReadSeekerAt struct {
+type ReadSeekerAt interface {
 	io.ReadSeeker
 	io.ReaderAt
 }
@@ -28,13 +28,14 @@ type LdifReader struct {
 
 // NewLdifReader returns a constructed LdifReader.
 // The ReadSeekerAt input requirement ensures that the input implements both
-// io.ReaderAt and io.ReadSeeker.
+// io.ReaderAt and io.ReadSeeker. A file is a good example.
 func NewLdifReader(input ReadSeekerAt, conf ...ReaderConf) LdifReader {
 	var actualConf ReaderConf
 	if len(conf) == 0 {
 		actualConf = NewReaderConf()
+	} else {
+		actualConf = conf[0]
 	}
-	actualConf = conf[0]
 
 	return LdifReader{
 		input:      input,
@@ -58,11 +59,12 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	entityLines := []string{}
 
 	for entityBlock.Scan() {
-		if r.isEntitySeparator(entityBlock.Text()) {
+		line := entityBlock.Text()
+		if r.isEntitySeparator(line) {
 			break
 		}
 
-		entityLines = append(entityLines, entityBlock.Text())
+		entityLines = append(entityLines, line)
 	}
 
 	return entitybuilder.BuildFromAttrList(entityLines, r.AttributeFilter)
@@ -178,43 +180,45 @@ func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) e
 		return errors.New("unable to find first entity block")
 	}
 
-	go func(r LdifReader, entities chan entity.Entity, scanner *bufio.Scanner) {
-		defer close(entities)
-		for scanner.Scan() {
-			titleLine := scanner.Text()
-			if !r.isEntityTitle(titleLine) {
-				continue
-			}
-
-			r.Logger.Info("Parsing entity")
-			entity, parseErr := r.getEntityFromBlock(scanner)
-			if parseErr != nil {
-				r.Logger.Error(parseErr.Error())
-				continue
-			}
-
-			dn, dnFound := entity.GetDN()
-			if !dnFound {
-				r.Logger.Error("Unable to parse DN for entity: " + titleLine)
-				continue
-			}
-
-			r.Logger.Info("Applying entity filter to: " + dn)
-			entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
-			if matchErr != nil {
-				r.Logger.Error(matchErr.Error())
-				continue
-			}
-
-			if !entityHasMatchedFilter {
-				continue
-			}
-
-			r.Logger.Info("Appending matched entity: " + dn)
-			entities <- entity
-		}
-	}(r, entities, entityScanner)
+	go r.buildEntitiesFromScanner(entities, entityScanner)
 
 	<-done
 	return nil
+}
+
+func (r LdifReader) buildEntitiesFromScanner(entities chan entity.Entity, scanner *bufio.Scanner) {
+	defer close(entities)
+	for scanner.Scan() {
+		titleLine := scanner.Text()
+		if !r.isEntityTitle(titleLine) {
+			continue
+		}
+
+		r.Logger.Info("Parsing entity")
+		entity, parseErr := r.getEntityFromBlock(scanner)
+		if parseErr != nil {
+			r.Logger.Error(parseErr.Error())
+			continue
+		}
+
+		dn, dnFound := entity.GetDN()
+		if !dnFound {
+			r.Logger.Error("Unable to parse DN for entity: " + titleLine)
+			continue
+		}
+
+		r.Logger.Info("Applying entity filter to: " + dn)
+		entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
+		if matchErr != nil {
+			r.Logger.Error(matchErr.Error())
+			continue
+		}
+
+		if !entityHasMatchedFilter {
+			continue
+		}
+
+		r.Logger.Info("Appending matched entity: " + dn)
+		entities <- entity
+	}
 }

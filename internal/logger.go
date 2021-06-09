@@ -15,6 +15,31 @@ type ILogger interface {
 	SetLogLevelDebug()
 }
 
+// NopLogger is a logger that does nothing
+type NopLogger struct{}
+
+// NewLogger creates a logger at log level Error
+func NewNopLogger() ILogger {
+	return NopLogger{}
+}
+
+func (l NopLogger) Info(template string, args ...interface{}) {
+}
+
+func (l NopLogger) Debug(template string, args ...interface{}) {
+}
+
+func (l NopLogger) Error(template string, args ...interface{}) {
+}
+
+// SetLogLevelInfo sets the current log level to info
+func (l NopLogger) SetLogLevelInfo() {
+}
+
+// SetLogLevelDebug sets the current log level to debug
+func (l NopLogger) SetLogLevelDebug() {
+}
+
 // PkgLogger is the package logging implementation
 type PkgLogger struct {
 	loggerImpl *zap.Logger
@@ -26,7 +51,7 @@ func NewLogger() ILogger {
 	config.Level.SetLevel(zapcore.ErrorLevel)
 
 	loggerImpl, _ := config.Build()
-	return PkgLogger{
+	return &PkgLogger{
 		loggerImpl: loggerImpl,
 	}
 }
@@ -44,7 +69,7 @@ func (l PkgLogger) Error(template string, args ...interface{}) {
 }
 
 // SetLogLevelInfo sets the current log level to info
-func (l PkgLogger) SetLogLevelInfo() {
+func (l *PkgLogger) SetLogLevelInfo() {
 	config := zap.NewDevelopmentConfig()
 	config.Level.SetLevel(zap.InfoLevel)
 
@@ -52,7 +77,7 @@ func (l PkgLogger) SetLogLevelInfo() {
 }
 
 // SetLogLevelDebug sets the current log level to debug
-func (l PkgLogger) SetLogLevelDebug() {
+func (l *PkgLogger) SetLogLevelDebug() {
 	config := zap.NewDevelopmentConfig()
 	config.Level.SetLevel(zap.DebugLevel)
 
