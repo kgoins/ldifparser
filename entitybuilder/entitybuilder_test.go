@@ -50,13 +50,40 @@ func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 	r.Equal(cnAttr, "MYPC")
 }
 
-func TestEntityBuilder_BuildFromAttrList_MalformedTitle(t *testing.T) {
+func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 	r := require.New(t)
 
 	attrLines := []string{
 		"# MYPC, ContosoUsers, contoso.com",
+		"dn: CN=MYPC,OU=ContosoUsers,DC=contoso,DC=com",
+		"objectClass: top",
+		"objectClass: computer",
+		"cn: MYPC",
 	}
 
-	_, err := entitybuilder.BuildEntity(attrLines, nil)
+	attrFilter := entitybuilder.NewAttributeFilter([]string{"cn"})
+
+	e, err := entitybuilder.BuildEntity(attrLines, attrFilter)
+	r.NoError(err)
+
+	r.False(e.IsEmpty())
+	r.Equal(2, e.Size()) // only CN and DN should remain
+
+	cnAttr, found := e.GetSingleValuedAttribute("cn")
+	r.True(found)
+	r.Equal(cnAttr, "MYPC")
+
+	_, found = e.GetAttribute("objectClass")
+	r.False(found)
+}
+
+func TestEntityBuilder_BuildFromAttrList_MalformedTitle(t *testing.T) {
+	r := require.New(t)
+
+	attrLines := []string{
+		"MYPC, ContosoUsers, contoso.com",
+	}
+
+	_, err := entitybuilder.BuildEntity(attrLines)
 	r.Error(err)
 }
