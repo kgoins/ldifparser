@@ -28,22 +28,24 @@ func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
 	}
 }
 
+var defaultTestAttrLines = []string{
+	"# MYPC, ContosoUsers, contoso.com",
+	"dn: CN=MYPC,OU=ContosoUsers,DC=contoso,DC=com",
+	"objectClass: top",
+	"objectClass: computer",
+	"cn: MYPC",
+}
+
+var defaultTestEntitySize = 3
+
 func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 	r := require.New(t)
 
-	attrLines := []string{
-		"# MYPC, ContosoUsers, contoso.com",
-		"dn: CN=MYPC,OU=ContosoUsers,DC=contoso,DC=com",
-		"objectClass: top",
-		"objectClass: computer",
-		"cn: MYPC",
-	}
-
-	e, err := entitybuilder.BuildEntity(attrLines, nil)
+	e, err := entitybuilder.BuildEntity(defaultTestAttrLines)
 	r.NoError(err)
 
 	r.False(e.IsEmpty())
-	r.Equal(3, e.Size())
+	r.Equal(defaultTestEntitySize, e.Size())
 
 	cnAttr, found := e.GetSingleValuedAttribute("cn")
 	r.True(found)
@@ -53,17 +55,9 @@ func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 	r := require.New(t)
 
-	attrLines := []string{
-		"# MYPC, ContosoUsers, contoso.com",
-		"dn: CN=MYPC,OU=ContosoUsers,DC=contoso,DC=com",
-		"objectClass: top",
-		"objectClass: computer",
-		"cn: MYPC",
-	}
-
 	attrFilter := entitybuilder.NewAttributeFilter([]string{"cn"})
 
-	e, err := entitybuilder.BuildEntity(attrLines, attrFilter)
+	e, err := entitybuilder.BuildEntity(defaultTestAttrLines, attrFilter)
 	r.NoError(err)
 
 	r.False(e.IsEmpty())
@@ -75,6 +69,21 @@ func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 
 	_, found = e.GetAttribute("objectClass")
 	r.False(found)
+}
+
+func TestEntityBuilder_BuildFromAttrList_NullOrEmptyAttrFilter(t *testing.T) {
+	r := require.New(t)
+
+	filters := []entitybuilder.AttributeFilter{
+		nil,
+		entitybuilder.NewAttributeFilter(),
+	}
+
+	for _, filter := range filters {
+		e, err := entitybuilder.BuildEntity(defaultTestAttrLines, filter)
+		r.NoError(err)
+		r.Equal(defaultTestEntitySize, e.Size())
+	}
 }
 
 func TestEntityBuilder_BuildFromAttrList_MalformedTitle(t *testing.T) {
