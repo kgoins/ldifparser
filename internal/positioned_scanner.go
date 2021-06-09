@@ -1,4 +1,4 @@
-package ldifparser
+package internal
 
 import (
 	"bufio"
@@ -6,18 +6,25 @@ import (
 )
 
 type PositionedScanner struct {
-	pos     int64
-	scanner *bufio.Scanner
+	pos      int64
+	buffSize int
+	scanner  *bufio.Scanner
 }
 
-func NewPositionedScanner(inputStream io.Reader) *PositionedScanner {
+func NewPositionedScanner(inputStream io.Reader, buffSize ...int) *PositionedScanner {
 	positionedScanner := PositionedScanner{
 		pos:     0,
 		scanner: bufio.NewScanner(inputStream),
 	}
 
-	lineBuf := make([]byte, LDAPMaxLineSize)
-	positionedScanner.Buffer(lineBuf, LDAPMaxLineSize)
+	lineSize := 256
+	if len(buffSize) > 0 {
+		lineSize = buffSize[0]
+	}
+	positionedScanner.buffSize = lineSize
+
+	lineBuf := make([]byte, lineSize)
+	positionedScanner.Buffer(lineBuf, lineSize)
 
 	scanLines := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		advance, token, err = bufio.ScanLines(data, atEOF)
@@ -53,4 +60,8 @@ func (ps PositionedScanner) Position() int64 {
 
 func (ps PositionedScanner) Text() string {
 	return ps.scanner.Text()
+}
+
+func (ps PositionedScanner) Err() error {
+	return ps.scanner.Err()
 }

@@ -2,7 +2,6 @@ package ldifparser
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"strings"
 
@@ -71,7 +70,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
-func (r LdifReader) findFirstEntityBlock() *bufio.Scanner {
+func (r *LdifReader) findFirstEntityBlock() *bufio.Scanner {
 	scanner := bufio.NewScanner(r.input)
 	buf := make([]byte, 0, r.ScannerBufferSize)
 	scanner.Buffer(buf, r.ScannerBufferSize)
@@ -94,7 +93,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := NewPositionedScanner(r.input)
+	scanner := internal.NewPositionedScanner(r.input)
 
 	for scanner.Scan() {
 		attrLine := strings.ToLower(scanner.Text())
@@ -105,7 +104,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	}
 
 	// Entity not found
-	return -1, scanner.scanner.Err()
+	return -1, scanner.Err()
 }
 
 func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
@@ -170,28 +169,36 @@ func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
 }
 
 // BuildEntities constructs an ldap entity per entry in the input ldif file.
-func (r LdifReader) BuildEntities(entities chan entity.Entity, done chan bool) error {
-	r.Logger.Info("Finding first entity block")
-	entityScanner := r.findFirstEntityBlock()
-	if entityScanner == nil {
-		return errors.New("unable to find first entity block")
+func (r LdifReader) BuildEntities() ([]entity.Entity, error) {
+	results := make(chan entity.Entity)
+	go r.BuildEntitiesChanneled(results)
+
+	entities := []entity.Entity{}
+	for e := range results {
+		entities = append(entities, e)
 	}
 
-	go r.buildEntitiesFromScanner(entities, entityScanner)
-
-	<-done
-	return nil
+	return entities, nil
 }
 
-func (r LdifReader) buildEntitiesFromScanner(entities chan entity.Entity, scanner *bufio.Scanner) {
-	defer close(entities)
+// BuildEntitiesChanneled constructs an ldap entity per entry in the input ldif file
+// and returns the result via a channel. Any errors during processing will be logged
+// and the entity that caused it will be skipped. This function is expected to be run
+// in a goroutine. See BuildEntities's implementation for reference.
+func (r LdifReader) BuildEntitiesChanneled(results chan<- entity.Entity) {
+	r.Logger.Info("finding first entity block")
+	scanner := r.findFirstEntityBlock()
+	if scanner == nil {
+		return
+	}
+
 	for scanner.Scan() {
 		titleLine := scanner.Text()
 		if !internal.IsEntityTitle(titleLine) {
 			continue
 		}
 
-		r.Logger.Info("Parsing entity")
+		r.Logger.Info("parsing entity")
 		entity, parseErr := r.getEntityFromBlock(scanner)
 		if parseErr != nil {
 			r.Logger.Error(parseErr.Error())
@@ -200,11 +207,11 @@ func (r LdifReader) buildEntitiesFromScanner(entities chan entity.Entity, scanne
 
 		dn, dnFound := entity.GetDN()
 		if !dnFound {
-			r.Logger.Error("Unable to parse DN for entity: " + titleLine)
+			r.Logger.Error("unable to parse DN for entity: " + titleLine)
 			continue
 		}
 
-		r.Logger.Info("Applying entity filter to: " + dn)
+		r.Logger.Info("applying entity filter to: " + dn)
 		entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
 		if matchErr != nil {
 			r.Logger.Error(matchErr.Error())
@@ -215,7 +222,9 @@ func (r LdifReader) buildEntitiesFromScanner(entities chan entity.Entity, scanne
 			continue
 		}
 
-		r.Logger.Info("Appending matched entity: " + dn)
-		entities <- entity
+		r.Logger.Info("appending matched entity: " + dn)
+		results <- entity
 	}
+
+	close(results)
 }
