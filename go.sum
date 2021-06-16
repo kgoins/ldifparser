@@ -22,6 +22,8 @@ github.com/kgoins/ldapentity v0.0.0-20210611181120-33f9ad68eed1 h1:4L4LnBCqEY+vx
 github.com/kgoins/ldapentity v0.0.0-20210611181120-33f9ad68eed1/go.mod h1:FKVT2nDdxT1vto8HbLIEwcN2YSjQ76HhquRq2gnhbY0=
 github.com/kgoins/ldapentity v0.0.0-20210616161842-35f776bda1e2 h1:iW/IafHo4sbUQvVuuMpFX/JgYp5W9lUTmtQLPdP6LXM=
 github.com/kgoins/ldapentity v0.0.0-20210616161842-35f776bda1e2/go.mod h1:FKVT2nDdxT1vto8HbLIEwcN2YSjQ76HhquRq2gnhbY0=
+github.com/kgoins/ldapentity v0.0.0-20210616165926-96e2103eb03d h1:nGyHXz1QAzbqJIgvRJYceQYfPZ0iK3duJH/i+by1e2k=
+github.com/kgoins/ldapentity v0.0.0-20210616165926-96e2103eb03d/go.mod h1:FKVT2nDdxT1vto8HbLIEwcN2YSjQ76HhquRq2gnhbY0=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=

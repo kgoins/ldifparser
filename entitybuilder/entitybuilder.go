@@ -6,7 +6,6 @@ import (
 
 	hashset "github.com/kgoins/hashset/pkg"
 	"github.com/kgoins/ldapentity/entity"
-	"github.com/kgoins/ldifparser/internal"
 )
 
 func BuildAttribute(name string, initValue string) entity.Attribute {
@@ -29,9 +28,8 @@ func BuildAttributeFromLine(attrLine string) (entity.Attribute, error) {
 // and filter out all attributes not in `includeAttrs`.
 // A null or empty AttributeFilter will include all attributes.
 // The `includeAttrs` argument must contain lowercase string values.
-func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (entity.Entity, error) {
-	entity := entity.NewEntity()
-
+// `entityLines` are expected to be in LDIF attribute line format: ex) attrName: value
+func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (e entity.Entity, err error) {
 	var attrFilter AttributeFilter
 	if len(includeAttrs) == 0 || includeAttrs[0] == nil {
 		attrFilter = NewAttributeFilter()
@@ -39,32 +37,23 @@ func BuildEntity(entityLines []string, includeAttrs ...AttributeFilter) (entity.
 		attrFilter = includeAttrs[0]
 	}
 
-	// If there is a user specified attr filter, make sure
-	// the DN is pulled so a well-formed entity can be built
-	if !attrFilter.IsEmpty() {
-		attrFilter.Add("dn")
-		attrFilter.Add("distinguishedname")
+	attrMap, err := newAttributeMap(entityLines)
+	if err != nil {
+		return
 	}
 
-	for _, line := range entityLines {
-		attr, err := BuildAttributeFromLine(line)
-		if err != nil {
-			if internal.IsEntityTitle(line) {
-				continue
-			}
+	dn, found := attrMap.GetDN()
+	if !found || len(dn.GetValues()) < 1 {
+		err = errors.New("unable to find entity DN")
+		return
+	}
 
-			return entity, err
-		}
-
+	e = entity.NewEntity(dn.GetValues()[0])
+	for _, attr := range attrMap {
 		if !attrFilter.IsFiltered(attr) {
-			entity.AddAttribute(attr)
+			e.AddAttribute(attr)
 		}
 	}
 
-	_, found := entity.GetDN()
-	if !found {
-		return entity, errors.New("unable to parse object DN")
-	}
-
-	return entity, nil
+	return
 }
