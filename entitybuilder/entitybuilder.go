@@ -4,31 +4,34 @@ import (
 	"errors"
 	"strings"
 
-	hashset "github.com/kgoins/hashset/pkg"
 	"github.com/kgoins/ldapentity/entity"
-	"github.com/kgoins/ldifparser/internal"
 )
 
-func BuildAttribute(name string, initValue string) entity.Attribute {
-	return entity.Attribute{
-		Name:  strings.TrimRight(name, ":"),
-		Value: hashset.NewStrHashset(initValue),
+func splitAttrLine(attrLine string) ([]string, error) {
+	lineParts := strings.Split(attrLine, ": ")
+
+	if len(lineParts) != 2 {
+		return nil, errors.New("malformed attribute line")
 	}
+
+	if lineParts[0] == "" || lineParts[1] == "" {
+		return nil, errors.New("malformed attribute line")
+	}
+
+	lineParts[0] = strings.TrimRight(lineParts[0], ":")
+	return lineParts, nil
 }
 
+// BuildAttributeFromLine constructs an LDAP attribute from
+// an LDIF line, which are expected to be in `attrName: value` format.
 func BuildAttributeFromLine(attrLine string) (a entity.Attribute, err error) {
-	if internal.IsComment(attrLine) {
-		err = errors.New("unable to build attribute from LDIF comment")
+	attrParts, err := splitAttrLine(attrLine)
+	if err != nil {
 		return
 	}
 
-	lineParts := strings.Split(attrLine, ": ")
-	if len(lineParts) != 2 {
-		err = errors.New("malformed attribute line")
-		return
-	}
-
-	return BuildAttribute(lineParts[0], lineParts[1]), nil
+	a = entity.NewEntityAttribute(attrParts[0], attrParts[1])
+	return
 }
 
 // BuildEntity will construct an Entity from a list of attribute strings

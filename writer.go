@@ -43,7 +43,7 @@ func (w LdifWriter) WriteEntity(e entity.Entity) (err error) {
 		return
 	}
 
-	fmt.Fprint(w.output, titleLine)
+	fmt.Fprint(w.output, titleLine+"\n")
 
 	// Print attributes alphabetically
 	attrNames := e.GetAllAttributeNames()

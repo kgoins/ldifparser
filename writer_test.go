@@ -6,6 +6,7 @@ import (
 
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser"
+	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +20,26 @@ func buildTestEntity() entity.Entity {
 	return e
 }
 
+func TestWriter_StringifyAttribute_SingleValue(t *testing.T) {
+	r := require.New(t)
+	attr := entity.NewEntityAttribute("whenCreated", "20120423175240.0Z")
+
+	attrStr := ldifparser.StringifyAttribute(attr)
+	r.Len(attrStr, 1)
+
+	a2, err := entitybuilder.BuildAttributeFromLine(attrStr[0])
+	r.NoError(err)
+	r.True(attr.Equals(a2))
+}
+
+func TestWriter_StringifyAttribute_MultiValue(t *testing.T) {
+	r := require.New(t)
+	attr := entity.NewEntityAttribute("objectClass", "top", "person", "user")
+
+	attrStr := ldifparser.StringifyAttribute(attr)
+	r.Len(attrStr, 3)
+}
+
 func TestWriter_WriteEntity(t *testing.T) {
 	r := require.New(t)
 
@@ -30,7 +51,8 @@ func TestWriter_WriteEntity(t *testing.T) {
 	err := writer.WriteEntity(e)
 	r.NoError(err)
 
-	inBuffer := strings.NewReader(outBuffer.String())
+	outStr := outBuffer.String()
+	inBuffer := strings.NewReader(outStr)
 	reader := ldifparser.NewLdifReader(inBuffer)
 
 	samaccountname, _ := e.GetSingleValuedAttribute("sAMAccountName")

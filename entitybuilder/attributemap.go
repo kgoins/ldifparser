@@ -18,6 +18,14 @@ func (m attributeMap) GetDN() (entity.Attribute, bool) {
 	return dn, found
 }
 
+func mergeAttributes(a1, a2 entity.Attribute) entity.Attribute {
+	for _, val := range a2.GetValues() {
+		a1.Value.Add(val)
+	}
+
+	return a1
+}
+
 func newAttributeMap(attrLines []string) (attributeMap, error) {
 	attrs := make(map[string]entity.Attribute)
 
@@ -29,6 +37,11 @@ func newAttributeMap(attrLines []string) (attributeMap, error) {
 		attr, err := BuildAttributeFromLine(line)
 		if err != nil {
 			return nil, err
+		}
+
+		if _, attrExists := attrs[attr.Name]; attrExists {
+			existing := attrs[attr.Name]
+			attr = mergeAttributes(existing, attr)
 		}
 
 		attrs[attr.Name] = attr
