@@ -8,24 +8,24 @@ import (
 )
 
 func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
+	r := require.New(t)
+
 	attrLine := "userAccountControl: 66048"
 
 	attr, err := entitybuilder.BuildAttributeFromLine(attrLine)
-	if err != nil {
-		t.Fatalf("Unable to build from valid attr line")
-	}
+	r.NoError(err)
 
-	if attr.Name != "userAccountControl" {
-		t.Fatalf("Failed to parse attr name")
-	}
+	r.Equal(attr.Name, "userAccountControl")
+	r.Len(attr.GetValues(), 1)
+	r.Equal(attr.GetValues()[0], "66048")
+}
 
-	if attr.Value.Size() != 1 {
-		t.Fatalf("Failed to parse attr value")
-	}
+func TestEntityBuilder_ExcludeTitleLine(t *testing.T) {
+	r := require.New(t)
+	attrLine := "# MYPC, ContosoUsers, contoso.com"
 
-	if attr.Value.Values()[0] != "66048" {
-		t.Fatalf("Failed to parse attr value")
-	}
+	_, err := entitybuilder.BuildAttributeFromLine(attrLine)
+	r.Error(err)
 }
 
 var defaultTestAttrLines = []string{

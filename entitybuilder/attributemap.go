@@ -22,12 +22,12 @@ func newAttributeMap(attrLines []string) (attributeMap, error) {
 	attrs := make(map[string]entity.Attribute)
 
 	for _, line := range attrLines {
+		if internal.IsComment(line) {
+			continue
+		}
+
 		attr, err := BuildAttributeFromLine(line)
 		if err != nil {
-			if internal.IsEntityTitle(line) {
-				continue
-			}
-
 			return nil, err
 		}
 

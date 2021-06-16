@@ -6,6 +6,7 @@ import (
 
 	hashset "github.com/kgoins/hashset/pkg"
 	"github.com/kgoins/ldapentity/entity"
+	"github.com/kgoins/ldifparser/internal"
 )
 
 func BuildAttribute(name string, initValue string) entity.Attribute {
@@ -15,10 +16,16 @@ func BuildAttribute(name string, initValue string) entity.Attribute {
 	}
 }
 
-func BuildAttributeFromLine(attrLine string) (entity.Attribute, error) {
+func BuildAttributeFromLine(attrLine string) (a entity.Attribute, err error) {
+	if internal.IsComment(attrLine) {
+		err = errors.New("unable to build attribute from LDIF comment")
+		return
+	}
+
 	lineParts := strings.Split(attrLine, ": ")
 	if len(lineParts) != 2 {
-		return entity.Attribute{}, errors.New("malformed attribute line")
+		err = errors.New("malformed attribute line")
+		return
 	}
 
 	return BuildAttribute(lineParts[0], lineParts[1]), nil
