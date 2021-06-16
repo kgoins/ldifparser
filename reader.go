@@ -121,9 +121,9 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 	}
 }
 
-// BuildEntity returns an empty Entity object if the object is not found,
+// ReadEntity returns an empty Entity object if the object is not found,
 // other wise it returns the entity object or an error if one is encountered.
-func (r LdifReader) BuildEntity(keyAttrName string, keyAttrVal string) (e entity.Entity, err error) {
+func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.Entity, err error) {
 	keyAttr := entity.NewEntityAttribute(keyAttrName, keyAttrVal)
 
 	keyAttrOffset, err := r.getKeyAttrOffset(keyAttr)
@@ -168,10 +168,10 @@ func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
 	return len(matches) > 0, nil
 }
 
-// BuildEntities constructs an ldap entity per entry in the input ldif file.
-func (r LdifReader) BuildEntities() ([]entity.Entity, error) {
+// ReadEntities constructs an ldap entity per entry in the input ldif file.
+func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 	results := make(chan entity.Entity)
-	go r.BuildEntitiesChanneled(results)
+	go r.ReadEntitiesChanneled(results)
 
 	entities := []entity.Entity{}
 	for e := range results {
@@ -181,11 +181,11 @@ func (r LdifReader) BuildEntities() ([]entity.Entity, error) {
 	return entities, nil
 }
 
-// BuildEntitiesChanneled constructs an ldap entity per entry in the input ldif file
+// ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be logged
 // and the entity that caused it will be skipped. This function is expected to be run
 // in a goroutine. See BuildEntities's implementation for reference.
-func (r LdifReader) BuildEntitiesChanneled(results chan<- entity.Entity) {
+func (r LdifReader) ReadEntitiesChanneled(results chan<- entity.Entity) {
 	r.Logger.Info("finding first entity block")
 	scanner := r.findFirstEntityBlock()
 	if scanner == nil {

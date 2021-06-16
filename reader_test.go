@@ -22,7 +22,7 @@ func getTestDataDir() string {
 	return path.Join(myparent, "testdata")
 }
 
-func TestReader_BuildEntity(t *testing.T) {
+func TestReader_ReadEntity(t *testing.T) {
 	r := require.New(t)
 	testFilePath := filepath.Join(getTestDataDir(), testFileName)
 	testFile, err := os.Open(testFilePath)
@@ -33,7 +33,7 @@ func TestReader_BuildEntity(t *testing.T) {
 	testName := "DISABLEDUSER"
 
 	ldifReader := ldifparser.NewLdifReader(testFile)
-	e, err := ldifReader.BuildEntity(testAttr, testName)
+	e, err := ldifReader.ReadEntity(testAttr, testName)
 	r.NoError(err)
 
 	r.False(e.IsEmpty())
@@ -44,7 +44,7 @@ func TestReader_BuildEntity(t *testing.T) {
 	r.Equal(eName, testName)
 }
 
-func TestReader_BuildEntities(t *testing.T) {
+func TestReader_ReadEntities(t *testing.T) {
 	r := require.New(t)
 
 	testFilePath := filepath.Join(getTestDataDir(), testFileName)
@@ -54,7 +54,7 @@ func TestReader_BuildEntities(t *testing.T) {
 	defer testFile.Close()
 
 	ldifReader := ldifparser.NewLdifReader(testFile)
-	entities, err := ldifReader.BuildEntities()
+	entities, err := ldifReader.ReadEntities()
 	r.NoError(err)
 
 	r.Equal(numTestFileEntities, len(entities))

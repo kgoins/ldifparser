@@ -56,7 +56,7 @@ func TestWriter_WriteEntity(t *testing.T) {
 	reader := ldifparser.NewLdifReader(inBuffer)
 
 	samaccountname, _ := e.GetSingleValuedAttribute("sAMAccountName")
-	eOut, err := reader.BuildEntity("sAMAccountName", samaccountname)
+	eOut, err := reader.ReadEntity("sAMAccountName", samaccountname)
 
 	r.NoError(err)
 	r.True(e.Equals(eOut))
