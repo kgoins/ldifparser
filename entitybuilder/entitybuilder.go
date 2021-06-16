@@ -23,7 +23,7 @@ func splitAttrLine(attrLine string) ([]string, error) {
 }
 
 // BuildAttributeFromLine constructs an LDAP attribute from
-// an LDIF line, which are expected to be in `attrName: value` format.
+// an LDIF line, which is expected to be in `attrName: value` format.
 func BuildAttributeFromLine(attrLine string) (a entity.Attribute, err error) {
 	attrParts, err := splitAttrLine(attrLine)
 	if err != nil {

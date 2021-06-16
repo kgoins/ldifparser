@@ -18,11 +18,22 @@ type ReaderConf struct {
 }
 
 func NewReaderConf() ReaderConf {
-
 	return ReaderConf{
 		Logger:            internal.NewNopLogger(),
 		Filter:            []filter.EntityFilter{},
 		AttributeFilter:   entitybuilder.NewAttributeFilter(),
 		ScannerBufferSize: LDAPMaxLineSize,
+	}
+}
+
+type WriterConf struct {
+	Logger         internal.ILogger
+	SortAttributes bool
+}
+
+func NewWriterConf() WriterConf {
+	return WriterConf{
+		Logger:         internal.NewNopLogger(),
+		SortAttributes: false,
 	}
 }

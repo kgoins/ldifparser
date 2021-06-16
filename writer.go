@@ -10,11 +10,20 @@ import (
 
 type LdifWriter struct {
 	output io.Writer
+	WriterConf
 }
 
-func NewLdifWriter(o io.Writer) LdifWriter {
+func NewLdifWriter(o io.Writer, conf ...WriterConf) LdifWriter {
+	var actualConf WriterConf
+	if len(conf) == 0 {
+		actualConf = NewWriterConf()
+	} else {
+		actualConf = conf[0]
+	}
+
 	return LdifWriter{
-		output: o,
+		output:     o,
+		WriterConf: actualConf,
 	}
 }
 
@@ -45,9 +54,10 @@ func (w LdifWriter) WriteEntity(e entity.Entity) (err error) {
 
 	fmt.Fprint(w.output, titleLine+"\n")
 
-	// Print attributes alphabetically
 	attrNames := e.GetAllAttributeNames()
-	sort.Strings(attrNames)
+	if w.SortAttributes {
+		sort.Strings(attrNames)
+	}
 
 	for _, name := range attrNames {
 		attr, found := e.GetAttribute(name)

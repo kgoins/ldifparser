@@ -28,7 +28,7 @@ type LdifReader struct {
 
 // NewLdifReader returns a constructed LdifReader.
 // The ReadSeekerAt input requirement ensures that the input implements both
-// io.ReaderAt and io.ReadSeeker. A file is a good example.
+// io.ReaderAt and io.ReadSeeker. A file or string buffer are good examples.
 func NewLdifReader(input ReadSeekerAt, conf ...ReaderConf) LdifReader {
 	var actualConf ReaderConf
 	if len(conf) == 0 {
