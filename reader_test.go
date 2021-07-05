@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/kgoins/ldifparser"
-	"github.com/kgoins/ldifparser/internal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,20 +80,4 @@ func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
 	r.NoError(err)
 
 	r.Equal(1, len(entities))
-}
-
-func TestInternal_IsEntityTitle(t *testing.T) {
-	r := require.New(t)
-
-	testMap := map[string]bool{
-		"# DISABLEDUSER, ContosoUsers, contoso.com":         true,
-		"# DISABLEDUSER\\, ME, ContosoUsers, contoso.com":   true,
-		"# DISABLEDUSER (myusr), ContosoUsers, contoso.com": true,
-		"DISABLEDUSER, ContosoUsers, contoso.com":           false,
-	}
-
-	for testTitle, expectedResp := range testMap {
-		resp := internal.IsEntityTitle(testTitle)
-		r.Equal(expectedResp, resp)
-	}
 }
