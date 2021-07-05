@@ -8,9 +8,6 @@ import (
 
 	"github.com/icza/backscanner"
 
-	"github.com/kgoins/entityfilter/entityfilter/filter"
-	"github.com/kgoins/entityfilter/entityfilter/matcher/entitymatcher"
-
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/kgoins/ldifparser/internal"
@@ -43,12 +40,6 @@ func NewLdifReader(input ReadSeekerAt, conf ...ReaderConf) LdifReader {
 		input:      input,
 		ReaderConf: actualConf,
 	}
-}
-
-// SetEntityFilter modifies the r to return only entities matching
-// the attribute / value pairs in the filter.
-func (r *LdifReader) SetEntityFilter(filter []filter.EntityFilter) {
-	r.Filter = filter
 }
 
 // SetAttributeFilter modifies the r to return only the ldap
@@ -160,18 +151,6 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 	return r.getEntityFromBlock(entityScanner)
 }
 
-func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
-	inputs := []entity.Entity{e}
-	matcher := entitymatcher.NewEntityMatcher(inputs)
-
-	matches, err := matcher.GetMatches(r.Filter...)
-	if err != nil {
-		return false, err
-	}
-
-	return len(matches) > 0, nil
-}
-
 // ReadEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 	done := make(chan bool)
@@ -224,17 +203,6 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 			dn, dnFound := entity.GetDN()
 			if !dnFound {
 				r.Logger.Error("unable to parse DN for entity: " + line)
-				continue
-			}
-
-			r.Logger.Info("applying entity filter to: " + dn)
-			entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
-			if matchErr != nil {
-				r.Logger.Error(matchErr.Error())
-				continue
-			}
-
-			if !entityHasMatchedFilter {
 				continue
 			}
 
