@@ -57,6 +57,9 @@ func (r *LdifReader) SetAttributeFilter(filter entitybuilder.AttributeFilter) {
 	r.AttributeFilter = filter
 }
 
+// getEntityFromBlock constructs an entity from the lines starting
+// at the scanner's current position. At the end of this call, the
+// scanner will be positioned at the end of the entity.
 func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entity, error) {
 	entityLines := []string{}
 
@@ -72,7 +75,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
-func (r *LdifReader) findFirstEntityBlock() (*bufio.Scanner, error) {
+func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
 	scanner := bufio.NewScanner(r.input)
 	buf := make([]byte, 0, r.ScannerBufferSize)
 	scanner.Buffer(buf, r.ScannerBufferSize)
@@ -198,15 +201,16 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 		}
 
 		r.Logger.Info("finding first entity block")
-		scanner, err := r.findFirstEntityBlock()
+		scanner, err := r.getScannerAtFirstEntityBlock()
 		if err != nil {
 			r.Logger.Error(err.Error())
 			return
 		}
 
+		// This loop iterates from one entity to the next
 		for scanner.Scan() {
-			titleLine := scanner.Text()
-			if !syntax.IsEntityTitle(titleLine) {
+			line := scanner.Text()
+			if !syntax.IsLdifAttributeLine(line) {
 				continue
 			}
 
@@ -219,7 +223,7 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 
 			dn, dnFound := entity.GetDN()
 			if !dnFound {
-				r.Logger.Error("unable to parse DN for entity: " + titleLine)
+				r.Logger.Error("unable to parse DN for entity: " + line)
 				continue
 			}
 
