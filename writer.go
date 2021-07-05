@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/kgoins/ldapentity/entity"
+	"github.com/kgoins/ldifparser/syntax"
 )
 
 type LdifWriter struct {
@@ -47,7 +48,7 @@ func (w LdifWriter) writeAttribute(attr entity.Attribute) {
 // it to the configured io.Writer. Attributes will be printed alphabetically.
 func (w LdifWriter) WriteEntity(e entity.Entity) (err error) {
 
-	titleLine, err := BuildTitleLine(e)
+	titleLine, err := syntax.BuildTitleLine(e)
 	if err != nil {
 		return
 	}

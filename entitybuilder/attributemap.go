@@ -2,7 +2,7 @@ package entitybuilder
 
 import (
 	"github.com/kgoins/ldapentity/entity"
-	"github.com/kgoins/ldifparser/internal"
+	"github.com/kgoins/ldifparser/syntax"
 )
 
 type attributeMap map[string]entity.Attribute
@@ -30,7 +30,7 @@ func newAttributeMap(attrLines []string) (attributeMap, error) {
 	attrs := make(map[string]entity.Attribute)
 
 	for _, line := range attrLines {
-		if internal.IsComment(line) {
+		if syntax.IsLdifComment(line) {
 			continue
 		}
 

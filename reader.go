@@ -2,6 +2,7 @@ package ldifparser
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/kgoins/ldifparser/internal"
+	"github.com/kgoins/ldifparser/syntax"
 )
 
 type ReadSeekerAt interface {
@@ -60,7 +62,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 
 	for entityBlock.Scan() {
 		line := entityBlock.Text()
-		if IsEntitySeparator(line) {
+		if syntax.IsEntitySeparator(line) {
 			break
 		}
 
@@ -70,18 +72,21 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
-func (r *LdifReader) findFirstEntityBlock() *bufio.Scanner {
+func (r *LdifReader) findFirstEntityBlock() (*bufio.Scanner, error) {
 	scanner := bufio.NewScanner(r.input)
 	buf := make([]byte, 0, r.ScannerBufferSize)
 	scanner.Buffer(buf, r.ScannerBufferSize)
 
 	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) == "" {
-			return scanner
+		line := scanner.Text()
+		if syntax.IsLdifComment(line) || syntax.IsEntitySeparator(line) {
+			continue
 		}
+
+		return scanner, nil
 	}
 
-	return nil
+	return nil, errors.New("unable to locate first entity block")
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
@@ -111,7 +116,7 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 			return pos, err
 		}
 
-		if IsEntityTitle(line) {
+		if syntax.IsEntityTitle(line) {
 			return pos, nil
 		}
 	}
@@ -193,14 +198,15 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 		}
 
 		r.Logger.Info("finding first entity block")
-		scanner := r.findFirstEntityBlock()
-		if scanner == nil {
+		scanner, err := r.findFirstEntityBlock()
+		if err != nil {
+			r.Logger.Error(err.Error())
 			return
 		}
 
 		for scanner.Scan() {
 			titleLine := scanner.Text()
-			if !IsEntityTitle(titleLine) {
+			if !syntax.IsEntityTitle(titleLine) {
 				continue
 			}
 
