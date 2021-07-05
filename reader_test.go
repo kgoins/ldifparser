@@ -65,3 +65,20 @@ func TestReader_ReadEntities(t *testing.T) {
 	randEntity := entities[rng.Intn(len(entities))]
 	r.False(randEntity.IsEmpty())
 }
+
+func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "user_no_prologue.ldif")
+	testFile, err := os.Open(testFilePath)
+
+	r.NoError(err)
+	defer testFile.Close()
+
+	ldifReader := ldifparser.NewLdifReader(testFile)
+	entities, err := ldifReader.ReadEntities()
+	r.NoError(err)
+
+	r.Equal(1, len(entities))
+	r.NotEmpty(entities[0].GetDN())
+}

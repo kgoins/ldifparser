@@ -1,4 +1,4 @@
-package ldifparser
+package syntax
 
 import (
 	"errors"

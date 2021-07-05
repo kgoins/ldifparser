@@ -2,17 +2,16 @@ package ldifparser
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strings"
 
 	"github.com/icza/backscanner"
 
-	"github.com/kgoins/entityfilter/entityfilter/filter"
-	"github.com/kgoins/entityfilter/entityfilter/matcher/entitymatcher"
-
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/kgoins/ldifparser/internal"
+	"github.com/kgoins/ldifparser/syntax"
 )
 
 type ReadSeekerAt interface {
@@ -43,24 +42,21 @@ func NewLdifReader(input ReadSeekerAt, conf ...ReaderConf) LdifReader {
 	}
 }
 
-// SetEntityFilter modifies the r to return only entities matching
-// the attribute / value pairs in the filter.
-func (r *LdifReader) SetEntityFilter(filter []filter.EntityFilter) {
-	r.Filter = filter
-}
-
 // SetAttributeFilter modifies the r to return only the ldap
 // attributes present in the filter on entites that are parsed.
 func (r *LdifReader) SetAttributeFilter(filter entitybuilder.AttributeFilter) {
 	r.AttributeFilter = filter
 }
 
+// getEntityFromBlock constructs an entity from the lines starting
+// at the scanner's current position. At the end of this call, the
+// scanner will be positioned at the end of the entity.
 func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entity, error) {
 	entityLines := []string{}
 
 	for entityBlock.Scan() {
 		line := entityBlock.Text()
-		if r.isEntitySeparator(line) {
+		if syntax.IsEntitySeparator(line) {
 			break
 		}
 
@@ -70,22 +66,22 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
-func (r *LdifReader) findFirstEntityBlock() *bufio.Scanner {
-	scanner := bufio.NewScanner(r.input)
-	buf := make([]byte, 0, r.ScannerBufferSize)
-	scanner.Buffer(buf, r.ScannerBufferSize)
+func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
+	scanner := internal.NewPositionedScanner(r.input, r.ScannerBufferSize)
 
+	pos := scanner.Position()
 	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) == "" {
-			return scanner
+		line := scanner.Text()
+		if !syntax.IsLdifAttributeLine(line) {
+			pos = scanner.Position()
+			continue
 		}
+
+		r.input.Seek(pos, 0)
+		return bufio.NewScanner(r.input), nil
 	}
 
-	return nil
-}
-
-func (r LdifReader) isEntitySeparator(line string) bool {
-	return strings.TrimSpace(line) == ""
+	return nil, errors.New("unable to locate first entity block")
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
@@ -115,7 +111,7 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 			return pos, err
 		}
 
-		if internal.IsEntityTitle(line) {
+		if syntax.IsEntityTitle(line) {
 			return pos, nil
 		}
 	}
@@ -156,22 +152,10 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 	return r.getEntityFromBlock(entityScanner)
 }
 
-func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
-	inputs := []entity.Entity{e}
-	matcher := entitymatcher.NewEntityMatcher(inputs)
-
-	matches, err := matcher.GetMatches(r.Filter...)
-	if err != nil {
-		return false, err
-	}
-
-	return len(matches) > 0, nil
-}
-
 // ReadEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
-	results := make(chan entity.Entity)
-	go r.ReadEntitiesChanneled(results)
+	done := make(chan bool)
+	results := r.ReadEntitiesChanneled(done)
 
 	entities := []entity.Entity{}
 	for e := range results {
@@ -183,48 +167,47 @@ func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be logged
-// and the entity that caused it will be skipped. This function is expected to be run
-// in a goroutine. See BuildEntities's implementation for reference.
-func (r LdifReader) ReadEntitiesChanneled(results chan<- entity.Entity) {
-	r.Logger.Info("finding first entity block")
-	scanner := r.findFirstEntityBlock()
-	if scanner == nil {
-		return
-	}
+// and the entity that caused it will be skipped.
+func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity {
+	results := make(chan entity.Entity)
 
-	for scanner.Scan() {
-		titleLine := scanner.Text()
-		if !internal.IsEntityTitle(titleLine) {
-			continue
+	go func() {
+		defer close(results)
+
+		select {
+		case <-done:
+			return
+		default:
 		}
 
-		r.Logger.Info("parsing entity")
-		entity, parseErr := r.getEntityFromBlock(scanner)
-		if parseErr != nil {
-			r.Logger.Error(parseErr.Error())
-			continue
+		r.Logger.Info("finding first entity block")
+		scanner, err := r.getScannerAtFirstEntityBlock()
+		if err != nil {
+			r.Logger.Error(err.Error())
+			return
 		}
 
-		dn, dnFound := entity.GetDN()
-		if !dnFound {
-			r.Logger.Error("unable to parse DN for entity: " + titleLine)
-			continue
+		hasNextEntity := true
+		for hasNextEntity {
+			r.Logger.Info("parsing entity")
+			entity, parseErr := r.getEntityFromBlock(scanner)
+			if parseErr != nil {
+				r.Logger.Error(parseErr.Error())
+				return
+			}
+
+			dn, dnFound := entity.GetDN()
+			if !dnFound {
+				r.Logger.Error("entity corrupted, unable to parse DN for entity")
+				return
+			}
+
+			r.Logger.Info("appending matched entity: " + dn)
+			results <- entity
+
+			hasNextEntity = scanner.Scan()
 		}
+	}()
 
-		r.Logger.Info("applying entity filter to: " + dn)
-		entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
-		if matchErr != nil {
-			r.Logger.Error(matchErr.Error())
-			continue
-		}
-
-		if !entityHasMatchedFilter {
-			continue
-		}
-
-		r.Logger.Info("appending matched entity: " + dn)
-		results <- entity
-	}
-
-	close(results)
+	return results
 }
