@@ -170,8 +170,8 @@ func (r LdifReader) matchesFilter(e entity.Entity) (bool, error) {
 
 // ReadEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
-	results := make(chan entity.Entity)
-	go r.ReadEntitiesChanneled(results)
+	done := make(chan bool)
+	results := r.ReadEntitiesChanneled(done)
 
 	entities := []entity.Entity{}
 	for e := range results {
@@ -183,48 +183,59 @@ func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be logged
-// and the entity that caused it will be skipped. This function is expected to be run
-// in a goroutine. See BuildEntities's implementation for reference.
-func (r LdifReader) ReadEntitiesChanneled(results chan<- entity.Entity) {
-	r.Logger.Info("finding first entity block")
-	scanner := r.findFirstEntityBlock()
-	if scanner == nil {
-		return
-	}
+// and the entity that caused it will be skipped.
+func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity {
+	results := make(chan entity.Entity)
 
-	for scanner.Scan() {
-		titleLine := scanner.Text()
-		if !internal.IsEntityTitle(titleLine) {
-			continue
+	go func() {
+		defer close(results)
+
+		select {
+		case <-done:
+			return
+		default:
 		}
 
-		r.Logger.Info("parsing entity")
-		entity, parseErr := r.getEntityFromBlock(scanner)
-		if parseErr != nil {
-			r.Logger.Error(parseErr.Error())
-			continue
+		r.Logger.Info("finding first entity block")
+		scanner := r.findFirstEntityBlock()
+		if scanner == nil {
+			return
 		}
 
-		dn, dnFound := entity.GetDN()
-		if !dnFound {
-			r.Logger.Error("unable to parse DN for entity: " + titleLine)
-			continue
+		for scanner.Scan() {
+			titleLine := scanner.Text()
+			if !internal.IsEntityTitle(titleLine) {
+				continue
+			}
+
+			r.Logger.Info("parsing entity")
+			entity, parseErr := r.getEntityFromBlock(scanner)
+			if parseErr != nil {
+				r.Logger.Error(parseErr.Error())
+				continue
+			}
+
+			dn, dnFound := entity.GetDN()
+			if !dnFound {
+				r.Logger.Error("unable to parse DN for entity: " + titleLine)
+				continue
+			}
+
+			r.Logger.Info("applying entity filter to: " + dn)
+			entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
+			if matchErr != nil {
+				r.Logger.Error(matchErr.Error())
+				continue
+			}
+
+			if !entityHasMatchedFilter {
+				continue
+			}
+
+			r.Logger.Info("appending matched entity: " + dn)
+			results <- entity
 		}
+	}()
 
-		r.Logger.Info("applying entity filter to: " + dn)
-		entityHasMatchedFilter, matchErr := r.matchesFilter(entity)
-		if matchErr != nil {
-			r.Logger.Error(matchErr.Error())
-			continue
-		}
-
-		if !entityHasMatchedFilter {
-			continue
-		}
-
-		r.Logger.Info("appending matched entity: " + dn)
-		results <- entity
-	}
-
-	close(results)
+	return results
 }
