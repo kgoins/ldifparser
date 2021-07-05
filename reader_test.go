@@ -80,4 +80,5 @@ func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
 	r.NoError(err)
 
 	r.Equal(1, len(entities))
+	r.NotEmpty(entities[0].GetDN())
 }

@@ -1,4 +1,3 @@
-# MYUSR, ContosoUsers, contoso.com
 dn: CN=MYUSR,OU=ContosoUsers,DC=contoso,DC=com
 objectClass: top
 objectClass: person

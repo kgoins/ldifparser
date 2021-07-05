@@ -67,17 +67,18 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 }
 
 func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
-	scanner := bufio.NewScanner(r.input)
-	buf := make([]byte, 0, r.ScannerBufferSize)
-	scanner.Buffer(buf, r.ScannerBufferSize)
+	scanner := internal.NewPositionedScanner(r.input, r.ScannerBufferSize)
 
+	pos := scanner.Position()
 	for scanner.Scan() {
 		line := scanner.Text()
-		if syntax.IsLdifComment(line) || syntax.IsEntitySeparator(line) {
+		if !syntax.IsLdifAttributeLine(line) {
+			pos = scanner.Position()
 			continue
 		}
 
-		return scanner, nil
+		r.input.Seek(pos, 0)
+		return bufio.NewScanner(r.input), nil
 	}
 
 	return nil, errors.New("unable to locate first entity block")
@@ -186,28 +187,25 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 			return
 		}
 
-		// This loop iterates from one entity to the next
-		for scanner.Scan() {
-			line := scanner.Text()
-			if !syntax.IsLdifAttributeLine(line) {
-				continue
-			}
-
+		hasNextEntity := true
+		for hasNextEntity {
 			r.Logger.Info("parsing entity")
 			entity, parseErr := r.getEntityFromBlock(scanner)
 			if parseErr != nil {
 				r.Logger.Error(parseErr.Error())
-				continue
+				return
 			}
 
 			dn, dnFound := entity.GetDN()
 			if !dnFound {
-				r.Logger.Error("unable to parse DN for entity: " + line)
-				continue
+				r.Logger.Error("entity corrupted, unable to parse DN for entity")
+				return
 			}
 
 			r.Logger.Info("appending matched entity: " + dn)
 			results <- entity
+
+			hasNextEntity = scanner.Scan()
 		}
 	}()
 
