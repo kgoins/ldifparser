@@ -1,4 +1,4 @@
-package internal
+package ldifparser
 
 import (
 	"regexp"
@@ -11,6 +11,10 @@ func IsEntityTitle(line string) bool {
 	return titleRegex.MatchString(line)
 }
 
-func IsComment(line string) bool {
+func IsEntitySeparator(line string) bool {
+	return strings.TrimSpace(line) == ""
+}
+
+func IsLdifComment(line string) bool {
 	return strings.HasPrefix(line, "#")
 }

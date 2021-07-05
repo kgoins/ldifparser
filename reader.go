@@ -60,7 +60,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 
 	for entityBlock.Scan() {
 		line := entityBlock.Text()
-		if r.isEntitySeparator(line) {
+		if IsEntitySeparator(line) {
 			break
 		}
 
@@ -82,10 +82,6 @@ func (r *LdifReader) findFirstEntityBlock() *bufio.Scanner {
 	}
 
 	return nil
-}
-
-func (r LdifReader) isEntitySeparator(line string) bool {
-	return strings.TrimSpace(line) == ""
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
@@ -115,7 +111,7 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 			return pos, err
 		}
 
-		if internal.IsEntityTitle(line) {
+		if IsEntityTitle(line) {
 			return pos, nil
 		}
 	}
@@ -204,7 +200,7 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 
 		for scanner.Scan() {
 			titleLine := scanner.Text()
-			if !internal.IsEntityTitle(titleLine) {
+			if !IsEntityTitle(titleLine) {
 				continue
 			}
 
