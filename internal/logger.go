@@ -57,14 +57,29 @@ func NewLogger() ILogger {
 }
 
 func (l PkgLogger) Info(template string, args ...interface{}) {
+	if len(args) == 0 {
+		l.loggerImpl.Sugar().Info(template)
+		return
+	}
+
 	l.loggerImpl.Sugar().Infof(template, args)
 }
 
 func (l PkgLogger) Debug(template string, args ...interface{}) {
+	if len(args) == 0 {
+		l.loggerImpl.Sugar().Debug(template)
+		return
+	}
+
 	l.loggerImpl.Sugar().Debugf(template, args)
 }
 
 func (l PkgLogger) Error(template string, args ...interface{}) {
+	if len(args) == 0 {
+		l.loggerImpl.Sugar().Error(template)
+		return
+	}
+
 	l.loggerImpl.Sugar().Errorf(template, args)
 }
 
