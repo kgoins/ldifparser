@@ -33,14 +33,7 @@ func (f HashsetAttrFilter) IsFiltered(attr entity.Attribute) bool {
 
 // NewAttributeFilter constructs an AttributeFilter with
 // lowercase attribute names if any are present.
-func NewAttributeFilter(filterParts ...[]string) AttributeFilter {
-	set := hashset.NewStrHashset()
-
-	if len(filterParts) > 0 {
-		for _, attr := range filterParts[0] {
-			set.Add(strings.ToLower(attr))
-		}
-	}
-
+func NewAttributeFilter(filterParts ...string) AttributeFilter {
+	set := hashset.NewStrHashset(filterParts...)
 	return &HashsetAttrFilter{set}
 }

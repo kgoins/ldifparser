@@ -55,7 +55,7 @@ func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 	r := require.New(t)
 
-	attrFilter := entitybuilder.NewAttributeFilter([]string{"cn"})
+	attrFilter := entitybuilder.NewAttributeFilter("cn")
 
 	e, err := entitybuilder.BuildEntity(defaultTestAttrLines, attrFilter)
 	r.NoError(err)
