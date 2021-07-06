@@ -9,8 +9,9 @@ import (
 	"github.com/icza/backscanner"
 
 	"github.com/kgoins/ldapentity/entity"
+	"github.com/kgoins/poscanner"
+
 	"github.com/kgoins/ldifparser/entitybuilder"
-	"github.com/kgoins/ldifparser/internal"
 	"github.com/kgoins/ldifparser/syntax"
 )
 
@@ -67,7 +68,7 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 }
 
 func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
-	scanner := internal.NewPositionedScanner(r.input, r.ScannerBufferSize)
+	scanner := poscanner.NewPositionedScanner(r.input, r.ScannerBufferSize)
 
 	pos := scanner.Position()
 	for scanner.Scan() {
@@ -89,7 +90,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := internal.NewPositionedScanner(r.input)
+	scanner := poscanner.NewPositionedScanner(r.input)
 
 	for scanner.Scan() {
 		attrLine := strings.ToLower(scanner.Text())
@@ -99,8 +100,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 		r.Logger.Debug("attrLine \"%s\" does not match key", attrLine)
 	}
 
-	// Entity not found
-	return -1, scanner.Err()
+	return -1, errors.New("entity not found")
 }
 
 func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
