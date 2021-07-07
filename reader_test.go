@@ -6,10 +6,13 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
+	"github.com/kgoins/ldapentity/entity/ad"
 	"github.com/kgoins/ldifparser"
+	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,6 +45,35 @@ func TestReader_ReadEntity(t *testing.T) {
 	eName, found := e.GetSingleValuedAttribute(testAttr)
 	r.True(found)
 	r.Equal(eName, testName)
+}
+
+func TestReader_ReadEntityWithAttrFilter(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), testFileName)
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	testAttr := ad.ATTR_sAMAccountName
+	testName := "DISABLEDUSER"
+
+	conf := ldifparser.NewReaderConf()
+	conf.AttributeFilter = entitybuilder.NewAttributeFilter(ad.ATTR_sAMAccountName)
+
+	ldifReader := ldifparser.NewLdifReader(testFile, conf)
+	e, err := ldifReader.ReadEntity(testAttr, testName)
+	r.NoError(err)
+
+	want := []string{
+		ad.ATTR_DN,
+		ad.ATTR_sAMAccountName,
+	}
+
+	attrNames := e.GetAllAttributeNames()
+	sort.Strings(attrNames)
+
+	r.Equal(want, attrNames)
 }
 
 func TestReader_ReadEntities(t *testing.T) {
