@@ -3,6 +3,7 @@ package entitybuilder_test
 import (
 	"testing"
 
+	"github.com/kgoins/ldapentity/entity/ad"
 	"github.com/kgoins/ldifparser/entitybuilder"
 	"github.com/stretchr/testify/require"
 )
@@ -34,6 +35,7 @@ var defaultTestAttrLines = []string{
 	"objectClass: top",
 	"objectClass: computer",
 	"cn: MYPC",
+	"sAMAccountName: MYPC$",
 }
 
 var defaultTestEntitySize = 3
@@ -55,7 +57,7 @@ func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 	r := require.New(t)
 
-	attrFilter := entitybuilder.NewAttributeFilter("cn")
+	attrFilter := entitybuilder.NewAttributeFilter(ad.ATTR_sAMAccountName)
 
 	e, err := entitybuilder.BuildEntity(defaultTestAttrLines, attrFilter)
 	r.NoError(err)
@@ -63,9 +65,9 @@ func TestEntityBuilder_BuildFromAttrList_IncludeList(t *testing.T) {
 	r.False(e.IsEmpty())
 	r.Equal(2, e.Size()) // only CN and DN should remain
 
-	cnAttr, found := e.GetSingleValuedAttribute("cn")
+	acctNameAttr, found := e.GetSingleValuedAttribute(ad.ATTR_sAMAccountName)
 	r.True(found)
-	r.Equal(cnAttr, "MYPC")
+	r.Equal(acctNameAttr, "MYPC$")
 
 	_, found = e.GetAttribute("objectClass")
 	r.False(found)

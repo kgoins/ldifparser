@@ -21,6 +21,12 @@ type HashsetAttrFilter struct {
 	hashset.StrHashset
 }
 
+func (f *HashsetAttrFilter) Add(attr ...string) {
+	for _, s := range attr {
+		f.StrHashset.Add(strings.ToLower(s))
+	}
+}
+
 // IsFiltered will return true if the filter specifies that
 // the attribute should be excluded
 func (f HashsetAttrFilter) IsFiltered(attr entity.Attribute) bool {
@@ -34,6 +40,8 @@ func (f HashsetAttrFilter) IsFiltered(attr entity.Attribute) bool {
 // NewAttributeFilter constructs an AttributeFilter with
 // lowercase attribute names if any are present.
 func NewAttributeFilter(filterParts ...string) AttributeFilter {
-	set := hashset.NewStrHashset(filterParts...)
-	return &HashsetAttrFilter{set}
+	s := hashset.NewStrHashset()
+	filter := HashsetAttrFilter{s}
+	filter.Add(filterParts...)
+	return &filter
 }
