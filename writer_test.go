@@ -1,6 +1,8 @@
 package ldifparser_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -60,4 +62,35 @@ func TestWriter_WriteEntity(t *testing.T) {
 
 	r.NoError(err)
 	r.True(e.Equals(eOut))
+}
+
+func TestReaderToWriter(t *testing.T) {
+	r := require.New(t)
+	testdir := getTestDataDir()
+
+	inFilePath := filepath.Join(testdir, testFileName)
+	inFile, err := os.Open(inFilePath)
+	r.NoError(err)
+	defer inFile.Close()
+
+	done := make(chan bool)
+	defer close(done)
+
+	ldifReader := ldifparser.NewLdifReader(inFile)
+	entitiesStream := ldifReader.ReadEntitiesChanneled(done)
+
+	outFilePath := filepath.Join(testdir, "outtest.ldif")
+	outFile, err := os.OpenFile(outFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0744)
+	r.NoError(err)
+	defer outFile.Close()
+	writer := ldifparser.NewLdifWriter(outFile)
+
+	for entity := range entitiesStream {
+		err = writer.WriteEntity(entity)
+		r.NoError(err)
+	}
+
+	info, err := os.Stat(outFilePath)
+	r.NoError(err)
+	r.Equal(int64(3776), info.Size())
 }
