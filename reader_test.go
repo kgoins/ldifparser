@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/ldapentity/entity/ad"
 	"github.com/kgoins/ldifparser"
 	"github.com/kgoins/ldifparser/entitybuilder"
@@ -113,4 +114,34 @@ func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
 
 	r.Equal(1, len(entities))
 	r.NotEmpty(entities[0].GetDN())
+}
+
+func TestReader_ReadEntitiesChanneled(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), testFileName)
+	testFile, err := os.Open(testFilePath)
+
+	r.NoError(err)
+	defer testFile.Close()
+
+	ldifReader := ldifparser.NewLdifReader(testFile)
+
+	done := make(chan bool)
+	defer close(done)
+
+	entitiesStream := ldifReader.ReadEntitiesChanneled(done)
+
+	entities := []entity.Entity{}
+	for entity := range entitiesStream {
+		entities = append(entities, entity)
+	}
+
+	r.Equal(numTestFileEntities, len(entities))
+
+	s := rand.NewSource(time.Now().Unix())
+	rng := rand.New(s)
+
+	randEntity := entities[rng.Intn(len(entities))]
+	r.False(randEntity.IsEmpty())
 }
