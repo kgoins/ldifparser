@@ -145,3 +145,19 @@ func TestReader_ReadEntitiesChanneled(t *testing.T) {
 	randEntity := entities[rng.Intn(len(entities))]
 	r.False(randEntity.IsEmpty())
 }
+
+func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "hugeattr.ldif")
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	testAttr := "sAMAccountName"
+	testName := "MYUSR"
+
+	ldifReader := ldifparser.NewLdifReader(testFile)
+	_, err = ldifReader.ReadEntity(testAttr, testName)
+	r.Error(err)
+}
