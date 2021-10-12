@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/icza/backscanner"
+	"github.com/kgoins/backscanner"
 
 	"github.com/kgoins/ldapentity/entity"
 	"github.com/kgoins/poscanner"
