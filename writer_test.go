@@ -85,8 +85,9 @@ func TestReaderToWriter(t *testing.T) {
 	defer outFile.Close()
 	writer := ldifparser.NewLdifWriter(outFile)
 
-	for entity := range entitiesStream {
-		err = writer.WriteEntity(entity)
+	for resp := range entitiesStream {
+		r.NoError(resp.Error)
+		err = writer.WriteEntity(resp.Entity)
 		r.NoError(err)
 	}
 
