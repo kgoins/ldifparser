@@ -165,21 +165,33 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 // ReadEntities constructs an ldap entity per entry in the input ldif file.
 func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 	done := make(chan bool)
-	results := r.ReadEntitiesChanneled(done)
+	defer close(done)
 
+	results := r.ReadEntitiesChanneled(done)
 	entities := []entity.Entity{}
-	for e := range results {
-		entities = append(entities, e)
+
+	for resp := range results {
+		if resp.Error != nil {
+			return entities, resp.Error
+		}
+
+		entities = append(entities, resp.Entity)
 	}
 
 	return entities, nil
 }
 
+type EntityResp struct {
+	Entity entity.Entity
+	Error  error
+}
+
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
-// and returns the result via a channel. Any errors during processing will be logged
-// and the entity that caused it will be skipped.
-func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity {
-	results := make(chan entity.Entity)
+// and returns the result via a channel. Any errors during processing will be packaged
+// with the entity causing them and returned over the channel. If an error is encountered,
+// further processing stops.
+func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan EntityResp {
+	results := make(chan EntityResp)
 
 	go func() {
 		defer close(results)
@@ -193,7 +205,8 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 		r.Logger.Info("finding first entity block")
 		scanner, err := r.getScannerAtFirstEntityBlock()
 		if err != nil {
-			r.Logger.Error(err.Error())
+			resp := EntityResp{Error: err}
+			results <- resp
 			return
 		}
 
@@ -202,18 +215,22 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan entity.Entity
 			r.Logger.Info("parsing entity")
 			entity, parseErr := r.getEntityFromBlock(scanner)
 			if parseErr != nil {
-				r.Logger.Error(parseErr.Error())
+				resp := EntityResp{Entity: entity, Error: parseErr}
+				results <- resp
 				return
 			}
 
 			dn, dnFound := entity.GetDN()
 			if !dnFound {
-				r.Logger.Error("entity corrupted, unable to parse DN for entity")
+				err = errors.New("entity corrupted, unable to parse DN for entity")
+				resp := EntityResp{Entity: entity, Error: err}
+				results <- resp
 				return
 			}
 
 			r.Logger.Info("appending matched entity: " + dn)
-			results <- entity
+			resp := EntityResp{Entity: entity, Error: nil}
+			results <- resp
 
 			hasNextEntity = scanner.Scan()
 		}
