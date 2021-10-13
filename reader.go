@@ -64,6 +64,10 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 		entityLines = append(entityLines, line)
 	}
 
+	if entityBlock.Err() != nil {
+		return entity.Entity{}, entityBlock.Err()
+	}
+
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
@@ -82,6 +86,10 @@ func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
 		return bufio.NewScanner(r.input), nil
 	}
 
+	if scanner.Err() != nil {
+		return nil, scanner.Err()
+	}
+
 	return nil, errors.New("unable to locate first entity block")
 }
 
@@ -91,16 +99,18 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
 	scanner := poscanner.NewPositionedScanner(r.input)
+	pos := int64(-1)
 
 	for scanner.Scan() {
 		attrLine := strings.ToLower(scanner.Text())
 		if keyAttrStr == attrLine {
-			return scanner.Position(), nil
+			pos = scanner.Position()
+			break
 		}
 		r.Logger.Debug("attrLine \"%s\" does not match key", attrLine)
 	}
 
-	return -1, errors.New("entity not found")
+	return pos, scanner.Err()
 }
 
 func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
