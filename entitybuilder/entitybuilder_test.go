@@ -38,7 +38,7 @@ var defaultTestAttrLines = []string{
 	"sAMAccountName: MYPC$",
 }
 
-var defaultTestEntitySize = 3
+var defaultTestEntitySize = 4
 
 func TestEntityBuilder_BuildFromAttrList_NoInclude(t *testing.T) {
 	r := require.New(t)
