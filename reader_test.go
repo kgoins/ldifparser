@@ -1,6 +1,7 @@
 package ldifparser_test
 
 import (
+	"bufio"
 	"math/rand"
 	"os"
 	"path"
@@ -131,10 +132,11 @@ func TestReader_ReadEntitiesChanneled(t *testing.T) {
 	defer close(done)
 
 	entitiesStream := ldifReader.ReadEntitiesChanneled(done)
-
 	entities := []entity.Entity{}
-	for entity := range entitiesStream {
-		entities = append(entities, entity)
+
+	for resp := range entitiesStream {
+		r.NoError(resp.Error)
+		entities = append(entities, resp.Entity)
 	}
 
 	r.Equal(numTestFileEntities, len(entities))
@@ -144,4 +146,33 @@ func TestReader_ReadEntitiesChanneled(t *testing.T) {
 
 	randEntity := entities[rng.Intn(len(entities))]
 	r.False(randEntity.IsEmpty())
+}
+
+func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "hugeattr.ldif")
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	testAttr := "samaccountname"
+	testName := "MYUSR"
+	ldifReader := ldifparser.NewLdifReader(testFile)
+
+	// during this test, the huge attribute should be passed
+	// over by poscanner during getKeyAttrOffset because the key
+	// does not exist and should error successfully
+	_, err = ldifReader.ReadEntity(testAttr, testName)
+	r.ErrorIs(err, bufio.ErrTooLong)
+
+	testAttr = "cn"
+	// the attribute actually does exist this time, and should
+	// test a successful error when reading in and parsing
+	// the ldap entity
+	_, err = ldifReader.ReadEntity(testAttr, testName)
+	r.ErrorIs(err, bufio.ErrTooLong)
+
+	_, err = ldifReader.ReadEntities()
+	r.ErrorIs(err, bufio.ErrTooLong)
 }

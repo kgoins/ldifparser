@@ -8,13 +8,13 @@ import (
 const LDAPMaxLineSize int = 1024 * 1024 * 10
 
 type ReaderConf struct {
-	Logger internal.ILogger
-
-	AttributeFilter entitybuilder.AttributeFilter
-
+	Logger            internal.ILogger
+	AttributeFilter   entitybuilder.AttributeFilter
 	ScannerBufferSize int
 }
 
+// NewReaderConf constructs a ReaderConf that has logging
+// disabled and a scan buffer size of `LDAPMaxLineSize`
 func NewReaderConf() ReaderConf {
 	return ReaderConf{
 		Logger:            internal.NewNopLogger(),
