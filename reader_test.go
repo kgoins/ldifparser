@@ -172,4 +172,7 @@ func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
 	// the ldap entity
 	_, err = ldifReader.ReadEntity(testAttr, testName)
 	r.ErrorIs(err, bufio.ErrTooLong)
+
+	_, err = ldifReader.ReadEntities()
+	r.ErrorIs(err, bufio.ErrTooLong)
 }
