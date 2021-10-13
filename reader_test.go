@@ -132,10 +132,11 @@ func TestReader_ReadEntitiesChanneled(t *testing.T) {
 	defer close(done)
 
 	entitiesStream := ldifReader.ReadEntitiesChanneled(done)
-
 	entities := []entity.Entity{}
-	for entity := range entitiesStream {
-		entities = append(entities, entity)
+
+	for resp := range entitiesStream {
+		r.NoError(resp.Error)
+		entities = append(entities, resp.Entity)
 	}
 
 	r.Equal(numTestFileEntities, len(entities))
