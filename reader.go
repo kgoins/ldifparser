@@ -98,7 +98,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := poscanner.NewPositionedScanner(r.input)
+	scanner := poscanner.NewPositionedScanner(r.input, r.ScannerBufferSize)
 	pos := int64(-1)
 
 	for scanner.Scan() {
