@@ -160,19 +160,28 @@ func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
 	testName := "MYUSR"
 	ldifReader := ldifparser.NewLdifReader(testFile)
 
-	// during this test, the huge attribute should be passed
-	// over by poscanner during getKeyAttrOffset because the key
-	// does not exist and should error successfully
-	_, err = ldifReader.ReadEntity(testAttr, testName)
-	r.ErrorIs(err, bufio.ErrTooLong)
-
-	testAttr = "cn"
-	// the attribute actually does exist this time, and should
-	// test a successful error when reading in and parsing
-	// the ldap entity
 	_, err = ldifReader.ReadEntity(testAttr, testName)
 	r.ErrorIs(err, bufio.ErrTooLong)
 
 	_, err = ldifReader.ReadEntities()
 	r.ErrorIs(err, bufio.ErrTooLong)
+}
+
+func TestReader_IncreaseBuffSize(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "hugeattr.ldif")
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	testAttr := "cn"
+	testName := "MYUSR"
+
+	conf := ldifparser.NewReaderConf()
+	conf.ScannerBufferSize = 1400000
+	ldifReader := ldifparser.NewLdifReader(testFile, conf)
+
+	_, err = ldifReader.ReadEntity(testAttr, testName)
+	r.NoError(err)
 }

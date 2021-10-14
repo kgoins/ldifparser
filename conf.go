@@ -5,7 +5,7 @@ import (
 	"github.com/kgoins/ldifparser/internal"
 )
 
-const LDAPMaxLineSize int = 1024 * 1024 * 10
+const LDAPMaxLineSize int = 1000000
 
 type ReaderConf struct {
 	Logger            internal.ILogger
