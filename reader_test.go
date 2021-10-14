@@ -176,3 +176,22 @@ func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
 	_, err = ldifReader.ReadEntities()
 	r.ErrorIs(err, bufio.ErrTooLong)
 }
+
+func TestReader_IncreaseBuffSize(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "hugeattr.ldif")
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	testAttr := "cn"
+	testName := "MYUSR"
+
+	conf := ldifparser.NewReaderConf()
+	conf.ScannerBufferSize = 1400000
+	ldifReader := ldifparser.NewLdifReader(testFile, conf)
+
+	_, err = ldifReader.ReadEntity(testAttr, testName)
+	r.NoError(err)
+}
