@@ -160,16 +160,6 @@ func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
 	testName := "MYUSR"
 	ldifReader := ldifparser.NewLdifReader(testFile)
 
-	// during this test, the huge attribute should be passed
-	// over by poscanner during getKeyAttrOffset because the key
-	// does not exist and should error successfully
-	_, err = ldifReader.ReadEntity(testAttr, testName)
-	r.ErrorIs(err, bufio.ErrTooLong)
-
-	testAttr = "cn"
-	// the attribute actually does exist this time, and should
-	// test a successful error when reading in and parsing
-	// the ldap entity
 	_, err = ldifReader.ReadEntity(testAttr, testName)
 	r.ErrorIs(err, bufio.ErrTooLong)
 
