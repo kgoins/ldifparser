@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/ansel1/merry/v2"
 	"github.com/kgoins/backscanner"
 
 	"github.com/kgoins/ldapentity/entity"
@@ -162,23 +163,24 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 	return r.getEntityFromBlock(entityScanner)
 }
 
-// ReadEntities constructs an ldap entity per entry in the input ldif file.
-func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
-	done := make(chan bool)
-	defer close(done)
+type EntityResp struct {
+	Entity entity.Entity
+	Error  error
+}
 
-	results := r.ReadEntitiesChanneled(done)
-	entities := []entity.Entity{}
+// ReadEntities constructs an ldap entity per entry in the input ldif file.
+func (r LdifReader) ReadEntities() []EntityResp {
+	interrupt := make(chan bool)
+	defer close(interrupt)
+
+	results := r.ReadEntitiesChanneled(interrupt)
+	entities := []EntityResp{}
 
 	for resp := range results {
-		if resp.Error != nil {
-			return entities, resp.Error
-		}
-
-		entities = append(entities, resp.Entity)
+		entities = append(entities, resp)
 	}
 
-	return entities, nil
+	return entities
 }
 
 func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, err error) {
@@ -198,14 +200,10 @@ func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, e
 	return
 }
 
-type EntityResp struct {
-	Entity entity.Entity
-	Error  error
-}
-
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be packaged
-// with the entity causing them and returned over the channel.
+// with the entity causing them and returned over the channel. Overflowing the scan buffer
+// (line too long) will corrupt the scanner, causing a panic.
 func (r LdifReader) ReadEntitiesChanneled(interrupt <-chan bool) <-chan EntityResp {
 	results := make(chan EntityResp)
 
@@ -233,12 +231,17 @@ func (r LdifReader) ReadEntitiesChanneled(interrupt <-chan bool) <-chan EntityRe
 			resp := EntityResp{e, err}
 			results <- resp
 
+			if err != nil && err == bufio.ErrTooLong {
+				err = merry.Wrap(err, merry.WithMessage(
+					"caused by: "+scanner.Text(),
+				))
+				panic(err)
+			}
+
 			hasNextEntity = scanner.Scan()
 
-			if err != nil {
-				if !r.ContinueOnErr {
-					return
-				}
+			if err != nil && !r.ContinueOnErr {
+				return
 			}
 		}
 	}()
