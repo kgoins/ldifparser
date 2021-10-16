@@ -2,7 +2,6 @@ package ldifparser
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"strings"
 
@@ -19,6 +18,13 @@ import (
 type ReadSeekerAt interface {
 	io.ReadSeeker
 	io.ReaderAt
+}
+
+type Scanner interface {
+	Scan() bool
+	Err() error
+	Text() string
+	Position() int64
 }
 
 // LdifReader constructs LDAP Entities from an ldif file.
@@ -66,17 +72,13 @@ func (r LdifReader) getEntityFromBlock(entityBlock Scanner) (entity.Entity, erro
 	}
 
 	if entityBlock.Err() != nil {
-		return entity.Entity{}, entityBlock.Err()
+		err := merry.Wrap(entityBlock.Err(), merry.AppendMessagef(
+			"error at position [%d]", entityBlock.Position(),
+		))
+		return entity.Entity{}, err
 	}
 
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
-}
-
-type Scanner interface {
-	Scan() bool
-	Err() error
-	Text() string
-	Position() int64
 }
 
 func (r LdifReader) newScanner(readSrc io.Reader) Scanner {
@@ -105,7 +107,7 @@ func (r *LdifReader) getScannerAtFirstEntityBlock() (Scanner, error) {
 		return nil, err
 	}
 
-	return nil, errors.New("unable to locate first entity block")
+	return nil, merry.New("unable to locate first entity block")
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
@@ -113,7 +115,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := poscanner.NewPositionedScanner(r.input, r.ScannerBufferSize)
+	scanner := r.newScanner(r.input)
 	pos := int64(-1)
 
 	for scanner.Scan() {
@@ -125,7 +127,14 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 		r.Logger.Debug("attrLine \"%s\" does not match key", attrLine)
 	}
 
-	return pos, scanner.Err()
+	err := scanner.Err()
+	if err != nil {
+		err = merry.Wrap(scanner.Err(), merry.AppendMessagef(
+			"error at position [%d]", scanner.Position(),
+		))
+	}
+
+	return pos, err
 }
 
 func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
@@ -133,6 +142,9 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 	for {
 		line, pos, err := scanner.Line()
 		if err != nil {
+			err = merry.Wrap(err, merry.AppendMessagef(
+				"error at position [%d]", pos,
+			))
 			return pos, err
 		}
 
@@ -203,7 +215,7 @@ func (r LdifReader) readSingleEntity(scanner Scanner) (e entity.Entity, err erro
 
 	dn, dnFound := e.GetDN()
 	if !dnFound {
-		err = errors.New("entity corrupted, unable to parse DN for entity")
+		err = merry.New("entity corrupted, unable to parse DN for entity")
 		return
 	}
 
