@@ -199,4 +199,11 @@ func TestReader_ContinueOnErr(t *testing.T) {
 
 	res := ldifReader.ReadEntities()
 	r.Len(res, 3)
+
+	conf = ldifparser.NewReaderConf()
+	conf.ContinueOnErr = false
+	ldifReader = ldifparser.NewLdifReader(testFile, conf)
+
+	res = ldifReader.ReadEntities()
+	r.Len(res, 1)
 }
