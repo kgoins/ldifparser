@@ -88,8 +88,7 @@ func TestReader_ReadEntities(t *testing.T) {
 	defer testFile.Close()
 
 	ldifReader := ldifparser.NewLdifReader(testFile)
-	entities, err := ldifReader.ReadEntities()
-	r.NoError(err)
+	entities := ldifReader.ReadEntities()
 
 	r.Equal(numTestFileEntities, len(entities))
 
@@ -97,7 +96,8 @@ func TestReader_ReadEntities(t *testing.T) {
 	rng := rand.New(s)
 
 	randEntity := entities[rng.Intn(len(entities))]
-	r.False(randEntity.IsEmpty())
+	r.NoError(randEntity.Error)
+	r.False(randEntity.Entity.IsEmpty())
 }
 
 func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
@@ -110,11 +110,11 @@ func TestReader_ReadEntitiesWithoutPrologue(t *testing.T) {
 	defer testFile.Close()
 
 	ldifReader := ldifparser.NewLdifReader(testFile)
-	entities, err := ldifReader.ReadEntities()
-	r.NoError(err)
+	entities := ldifReader.ReadEntities()
 
 	r.Equal(1, len(entities))
-	r.NotEmpty(entities[0].GetDN())
+	r.NoError(entities[0].Error)
+	r.NotEmpty(entities[0].Entity.GetDN())
 }
 
 func TestReader_ReadEntitiesChanneled(t *testing.T) {
@@ -163,8 +163,7 @@ func TestReader_ReadErrorFromHugeAttribute(t *testing.T) {
 	_, err = ldifReader.ReadEntity(testAttr, testName)
 	r.ErrorIs(err, bufio.ErrTooLong)
 
-	_, err = ldifReader.ReadEntities()
-	r.ErrorIs(err, bufio.ErrTooLong)
+	// require.Panics(t, func() { ldifReader.ReadEntities() })
 }
 
 func TestReader_IncreaseBuffSize(t *testing.T) {
@@ -184,4 +183,27 @@ func TestReader_IncreaseBuffSize(t *testing.T) {
 
 	_, err = ldifReader.ReadEntity(testAttr, testName)
 	r.NoError(err)
+}
+
+func TestReader_ContinueOnErr(t *testing.T) {
+	r := require.New(t)
+
+	testFilePath := filepath.Join(getTestDataDir(), "test_users_with_err.ldif")
+	testFile, err := os.Open(testFilePath)
+	r.NoError(err)
+	defer testFile.Close()
+
+	conf := ldifparser.NewReaderConf()
+	conf.ContinueOnErr = true
+	ldifReader := ldifparser.NewLdifReader(testFile, conf)
+
+	res := ldifReader.ReadEntities()
+	r.Len(res, 3)
+
+	conf = ldifparser.NewReaderConf()
+	conf.ContinueOnErr = false
+	ldifReader = ldifparser.NewLdifReader(testFile, conf)
+
+	res = ldifReader.ReadEntities()
+	r.Len(res, 1)
 }

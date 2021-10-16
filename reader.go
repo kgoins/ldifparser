@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/ansel1/merry/v2"
 	"github.com/kgoins/backscanner"
 
 	"github.com/kgoins/ldapentity/entity"
@@ -162,42 +163,55 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 	return r.getEntityFromBlock(entityScanner)
 }
 
-// ReadEntities constructs an ldap entity per entry in the input ldif file.
-func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
-	done := make(chan bool)
-	defer close(done)
-
-	results := r.ReadEntitiesChanneled(done)
-	entities := []entity.Entity{}
-
-	for resp := range results {
-		if resp.Error != nil {
-			return entities, resp.Error
-		}
-
-		entities = append(entities, resp.Entity)
-	}
-
-	return entities, nil
-}
-
 type EntityResp struct {
 	Entity entity.Entity
 	Error  error
 }
 
+// ReadEntities constructs an ldap entity per entry in the input ldif file.
+func (r LdifReader) ReadEntities() []EntityResp {
+	interrupt := make(chan bool)
+	defer close(interrupt)
+
+	results := r.ReadEntitiesChanneled(interrupt)
+	entities := []EntityResp{}
+
+	for resp := range results {
+		entities = append(entities, resp)
+	}
+
+	return entities
+}
+
+func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, err error) {
+	r.Logger.Info("parsing entity")
+	e, err = r.getEntityFromBlock(scanner)
+	if err != nil {
+		return
+	}
+
+	dn, dnFound := e.GetDN()
+	if !dnFound {
+		err = errors.New("entity corrupted, unable to parse DN for entity")
+		return
+	}
+
+	r.Logger.Info("appending matched entity: " + dn)
+	return
+}
+
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be packaged
-// with the entity causing them and returned over the channel. If an error is encountered,
-// further processing stops.
-func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan EntityResp {
+// with the entity causing them and returned over the channel. Overflowing the scan buffer
+// (line too long) will corrupt the scanner, causing a panic.
+func (r LdifReader) ReadEntitiesChanneled(interrupt <-chan bool) <-chan EntityResp {
 	results := make(chan EntityResp)
 
 	go func() {
 		defer close(results)
 
 		select {
-		case <-done:
+		case <-interrupt:
 			return
 		default:
 		}
@@ -212,27 +226,23 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan EntityResp {
 
 		hasNextEntity := true
 		for hasNextEntity {
-			r.Logger.Info("parsing entity")
-			entity, parseErr := r.getEntityFromBlock(scanner)
-			if parseErr != nil {
-				resp := EntityResp{Entity: entity, Error: parseErr}
-				results <- resp
-				return
-			}
+			e, err := r.readSingleEntity(scanner)
 
-			dn, dnFound := entity.GetDN()
-			if !dnFound {
-				err = errors.New("entity corrupted, unable to parse DN for entity")
-				resp := EntityResp{Entity: entity, Error: err}
-				results <- resp
-				return
-			}
-
-			r.Logger.Info("appending matched entity: " + dn)
-			resp := EntityResp{Entity: entity, Error: nil}
+			resp := EntityResp{e, err}
 			results <- resp
 
+			if err != nil && err == bufio.ErrTooLong {
+				err = merry.Wrap(err, merry.WithMessage(
+					"caused by: "+scanner.Text(),
+				))
+				panic(err)
+			}
+
 			hasNextEntity = scanner.Scan()
+
+			if err != nil && !r.ContinueOnErr {
+				return
+			}
 		}
 	}()
 
