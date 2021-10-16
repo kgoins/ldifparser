@@ -2,7 +2,6 @@ package ldifparser
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"strings"
 
@@ -19,6 +18,13 @@ import (
 type ReadSeekerAt interface {
 	io.ReadSeeker
 	io.ReaderAt
+}
+
+type Scanner interface {
+	Scan() bool
+	Err() error
+	Text() string
+	Position() int64
 }
 
 // LdifReader constructs LDAP Entities from an ldif file.
@@ -53,7 +59,7 @@ func (r *LdifReader) SetAttributeFilter(filter entitybuilder.AttributeFilter) {
 // getEntityFromBlock constructs an entity from the lines starting
 // at the scanner's current position. At the end of this call, the
 // scanner will be positioned at the end of the entity.
-func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entity, error) {
+func (r LdifReader) getEntityFromBlock(entityBlock Scanner) (entity.Entity, error) {
 	entityLines := []string{}
 
 	for entityBlock.Scan() {
@@ -66,14 +72,21 @@ func (r LdifReader) getEntityFromBlock(entityBlock *bufio.Scanner) (entity.Entit
 	}
 
 	if entityBlock.Err() != nil {
-		return entity.Entity{}, entityBlock.Err()
+		err := merry.Wrap(entityBlock.Err(), merry.AppendMessagef(
+			"error at position [%d]", entityBlock.Position(),
+		))
+		return entity.Entity{}, err
 	}
 
 	return entitybuilder.BuildEntity(entityLines, r.AttributeFilter)
 }
 
-func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
-	scanner := poscanner.NewPositionedScanner(r.input, r.ScannerBufferSize)
+func (r LdifReader) newScanner(readSrc io.Reader) Scanner {
+	return poscanner.NewPositionedScanner(readSrc, r.ScannerBufferSize)
+}
+
+func (r *LdifReader) getScannerAtFirstEntityBlock() (Scanner, error) {
+	scanner := r.newScanner(r.input)
 
 	pos := scanner.Position()
 	for scanner.Scan() {
@@ -84,14 +97,17 @@ func (r *LdifReader) getScannerAtFirstEntityBlock() (*bufio.Scanner, error) {
 		}
 
 		r.input.Seek(pos, 0)
-		return bufio.NewScanner(r.input), nil
+		return r.newScanner(r.input), nil
 	}
 
 	if scanner.Err() != nil {
-		return nil, scanner.Err()
+		err := merry.Wrap(scanner.Err(), merry.AppendMessagef(
+			"error at position [%d]", scanner.Position(),
+		))
+		return nil, err
 	}
 
-	return nil, errors.New("unable to locate first entity block")
+	return nil, merry.New("unable to locate first entity block")
 }
 
 // getKeyAddrOffset returns -1 if the entity is not found
@@ -99,7 +115,7 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 	keyAttrStr := strings.ToLower(StringifyAttribute(keyAttr)[0])
 	r.Logger.Info("searching with key: \"%s\"", keyAttrStr)
 
-	scanner := poscanner.NewPositionedScanner(r.input, r.ScannerBufferSize)
+	scanner := r.newScanner(r.input)
 	pos := int64(-1)
 
 	for scanner.Scan() {
@@ -111,7 +127,14 @@ func (r LdifReader) getKeyAttrOffset(keyAttr entity.Attribute) (int64, error) {
 		r.Logger.Debug("attrLine \"%s\" does not match key", attrLine)
 	}
 
-	return pos, scanner.Err()
+	err := scanner.Err()
+	if err != nil {
+		err = merry.Wrap(scanner.Err(), merry.AppendMessagef(
+			"error at position [%d]", scanner.Position(),
+		))
+	}
+
+	return pos, err
 }
 
 func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (int, error) {
@@ -119,6 +142,9 @@ func (r LdifReader) getPrevEntityOffset(input io.ReaderAt, lineOffset int64) (in
 	for {
 		line, pos, err := scanner.Line()
 		if err != nil {
+			err = merry.Wrap(err, merry.AppendMessagef(
+				"error at position [%d]", pos,
+			))
 			return pos, err
 		}
 
@@ -155,11 +181,8 @@ func (r LdifReader) ReadEntity(keyAttrName string, keyAttrVal string) (e entity.
 		return
 	}
 
-	entityScanner := bufio.NewScanner(r.input)
-	buf := make([]byte, r.ScannerBufferSize)
-	entityScanner.Buffer(buf, r.ScannerBufferSize)
-
 	r.Logger.Info("parsing entity from block")
+	entityScanner := r.newScanner(r.input)
 	return r.getEntityFromBlock(entityScanner)
 }
 
@@ -183,7 +206,7 @@ func (r LdifReader) ReadEntities() []EntityResp {
 	return entities
 }
 
-func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, err error) {
+func (r LdifReader) readSingleEntity(scanner Scanner) (e entity.Entity, err error) {
 	r.Logger.Info("parsing entity")
 	e, err = r.getEntityFromBlock(scanner)
 	if err != nil {
@@ -192,7 +215,7 @@ func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, e
 
 	dn, dnFound := e.GetDN()
 	if !dnFound {
-		err = errors.New("entity corrupted, unable to parse DN for entity")
+		err = merry.New("entity corrupted, unable to parse DN for entity")
 		return
 	}
 
@@ -232,8 +255,8 @@ func (r LdifReader) ReadEntitiesChanneled(interrupt <-chan bool) <-chan EntityRe
 			results <- resp
 
 			if err != nil && err == bufio.ErrTooLong {
-				err = merry.Wrap(err, merry.WithMessage(
-					"caused by: "+scanner.Text(),
+				err = merry.Wrap(err, merry.WithMessagef(
+					"panic caused by line at position: %d", scanner.Position(),
 				))
 				panic(err)
 			}
