@@ -11,6 +11,7 @@ type ReaderConf struct {
 	Logger            internal.ILogger
 	AttributeFilter   entitybuilder.AttributeFilter
 	ScannerBufferSize int
+	ContinueOnErr     bool
 }
 
 // NewReaderConf constructs a ReaderConf that has logging
@@ -20,6 +21,7 @@ func NewReaderConf() ReaderConf {
 		Logger:            internal.NewNopLogger(),
 		AttributeFilter:   entitybuilder.NewAttributeFilter(),
 		ScannerBufferSize: LDAPMaxLineSize,
+		ContinueOnErr:     true,
 	}
 }
 

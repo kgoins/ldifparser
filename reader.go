@@ -181,6 +181,23 @@ func (r LdifReader) ReadEntities() ([]entity.Entity, error) {
 	return entities, nil
 }
 
+func (r LdifReader) readSingleEntity(scanner *bufio.Scanner) (e entity.Entity, err error) {
+	r.Logger.Info("parsing entity")
+	e, err = r.getEntityFromBlock(scanner)
+	if err != nil {
+		return
+	}
+
+	dn, dnFound := e.GetDN()
+	if !dnFound {
+		err = errors.New("entity corrupted, unable to parse DN for entity")
+		return
+	}
+
+	r.Logger.Info("appending matched entity: " + dn)
+	return
+}
+
 type EntityResp struct {
 	Entity entity.Entity
 	Error  error
@@ -188,16 +205,15 @@ type EntityResp struct {
 
 // ReadEntitiesChanneled constructs an ldap entity per entry in the input ldif file
 // and returns the result via a channel. Any errors during processing will be packaged
-// with the entity causing them and returned over the channel. If an error is encountered,
-// further processing stops.
-func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan EntityResp {
+// with the entity causing them and returned over the channel.
+func (r LdifReader) ReadEntitiesChanneled(interrupt <-chan bool) <-chan EntityResp {
 	results := make(chan EntityResp)
 
 	go func() {
 		defer close(results)
 
 		select {
-		case <-done:
+		case <-interrupt:
 			return
 		default:
 		}
@@ -212,27 +228,18 @@ func (r LdifReader) ReadEntitiesChanneled(done <-chan bool) <-chan EntityResp {
 
 		hasNextEntity := true
 		for hasNextEntity {
-			r.Logger.Info("parsing entity")
-			entity, parseErr := r.getEntityFromBlock(scanner)
-			if parseErr != nil {
-				resp := EntityResp{Entity: entity, Error: parseErr}
-				results <- resp
-				return
-			}
+			e, err := r.readSingleEntity(scanner)
 
-			dn, dnFound := entity.GetDN()
-			if !dnFound {
-				err = errors.New("entity corrupted, unable to parse DN for entity")
-				resp := EntityResp{Entity: entity, Error: err}
-				results <- resp
-				return
-			}
-
-			r.Logger.Info("appending matched entity: " + dn)
-			resp := EntityResp{Entity: entity, Error: nil}
+			resp := EntityResp{e, err}
 			results <- resp
 
 			hasNextEntity = scanner.Scan()
+
+			if err != nil {
+				if !r.ContinueOnErr {
+					return
+				}
+			}
 		}
 	}()
 
