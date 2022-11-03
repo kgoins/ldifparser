@@ -12,7 +12,7 @@ func (m attributeMap) GetDN() (entity.Attribute, bool) {
 
 	dn, found := m["dn"]
 	if !found {
-		dn, found = m["distinguishedname"]
+		dn, found = m["distinguishedName"]
 	}
 
 	return dn, found
