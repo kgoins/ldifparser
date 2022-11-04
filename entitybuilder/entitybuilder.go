@@ -8,7 +8,7 @@ import (
 )
 
 func splitAttrLine(attrLine string) ([]string, error) {
-	lineParts := strings.Split(attrLine, ": ")
+	lineParts := strings.SplitN(attrLine, ": ", 2)
 
 	if len(lineParts) != 2 {
 		return nil, errors.New("malformed attribute line")

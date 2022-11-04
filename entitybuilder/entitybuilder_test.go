@@ -34,6 +34,19 @@ func TestEntityBuilder_BuildB64Attribute(t *testing.T) {
 	r.Equal("AQUAAAAAAAUVAAAAa9ZiBBbA6jKDPStVYiIMAA==", attr.GetValues()[0])
 }
 
+func TestEntityBuilder_BuildAttrWithDelimeterInValue(t *testing.T) {
+	r := require.New(t)
+
+	attrLine := "info: created by: CONTOSO-Admin"
+
+	attr, err := entitybuilder.BuildAttributeFromLine(attrLine)
+	r.NoError(err)
+
+	r.Equal("info", attr.Name)
+	r.Len(attr.GetValues(), 1)
+	r.Equal("created by: CONTOSO-Admin", attr.GetValues()[0])
+}
+
 func TestEntityBuilder_ExcludeTitleLine(t *testing.T) {
 	r := require.New(t)
 	attrLine := "# MYPC, ContosoUsers, contoso.com"
