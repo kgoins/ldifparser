@@ -21,6 +21,19 @@ func TestEntityBuilder_BuildAttributeFromValidLine(t *testing.T) {
 	r.Equal(attr.GetValues()[0], "66048")
 }
 
+func TestEntityBuilder_BuildB64Attribute(t *testing.T) {
+	r := require.New(t)
+
+	attrLine := "objectSid:: AQUAAAAAAAUVAAAAa9ZiBBbA6jKDPStVYiIMAA=="
+
+	attr, err := entitybuilder.BuildAttributeFromLine(attrLine)
+	r.NoError(err)
+
+	r.Equal("objectSid", attr.Name)
+	r.Len(attr.GetValues(), 1)
+	r.Equal("AQUAAAAAAAUVAAAAa9ZiBBbA6jKDPStVYiIMAA==", attr.GetValues()[0])
+}
+
 func TestEntityBuilder_ExcludeTitleLine(t *testing.T) {
 	r := require.New(t)
 	attrLine := "# MYPC, ContosoUsers, contoso.com"
