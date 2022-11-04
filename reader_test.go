@@ -69,7 +69,7 @@ func TestReader_ReadEntityWithAttrFilter(t *testing.T) {
 
 	want := []string{
 		"dn",
-		"samaccountname",
+		"sAMAccountName",
 	}
 
 	attrNames := e.GetAllAttributeNames()

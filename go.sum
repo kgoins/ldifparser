@@ -52,8 +52,8 @@ github.com/kgoins/backscanner v1.0.1/go.mod h1:GqG0U9ugyoqArEXxRBDZjcDZJQJ+HYOrg
 github.com/kgoins/hashset v0.1.0/go.mod h1:La39wQwoV2fuwcVhBbROEdyVY+/3lhlVlCb08jd+4Pc=
 github.com/kgoins/hashset v0.2.0 h1:6P/0WVYVqdjivzot83EL21YVj6iDH5H2KoHa+lTU+PE=
 github.com/kgoins/hashset v0.2.0/go.mod h1:La39wQwoV2fuwcVhBbROEdyVY+/3lhlVlCb08jd+4Pc=
-github.com/kgoins/ldapentity v0.2.0 h1:4DEIiu8gUhxIGOfk6XQRXt4hxF2ZY2O04ZMua7ul5gc=
-github.com/kgoins/ldapentity v0.2.0/go.mod h1:oV3BzNQEePLzghwHaWsDG3koJL6nd+E/Ep+ljNpLyLo=
+github.com/kgoins/ldapentity v1.0.0 h1:5Cr9th3FpunbIc6OeiRsWEYNZ9Nk771OMIeAdDjh1gU=
+github.com/kgoins/ldapentity v1.0.0/go.mod h1:oV3BzNQEePLzghwHaWsDG3koJL6nd+E/Ep+ljNpLyLo=
 github.com/kgoins/poscanner v1.1.0 h1:IFpnvonjA9Txlm9GagW6pPvvK0KkEdFTbFBaKd6oTbo=
 github.com/kgoins/poscanner v1.1.0/go.mod h1:PJutzjm9EpQifKLtzZGhphbMlUMe8vByzh04jRdvSIg=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
