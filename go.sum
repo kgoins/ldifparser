@@ -11,6 +11,8 @@ github.com/audibleblink/bamflags v0.2.0/go.mod h1:zpuLMpykftgB88SHYGBa1urg0uHn01
 github.com/audibleblink/msldapuac v0.2.0 h1:1KFPLKWNmPGiCbd7HD/PPb5UuNOTvKRz1XcGeP2TyuI=
 github.com/audibleblink/msldapuac v0.2.0/go.mod h1:dYy4kKJVkwsmvb+8AVyxf84YhW0FAD+RB+wxy3M/fXA=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
+github.com/cespare/xxhash/v2 v2.1.2 h1:YRXhKfTDauu4ajMg1TPgFO5jnlC2HCbmLXMcTG5cbYE=
+github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20201120205902-5459f2c99403/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
@@ -50,8 +52,8 @@ github.com/kgoins/backscanner v1.0.1/go.mod h1:GqG0U9ugyoqArEXxRBDZjcDZJQJ+HYOrg
 github.com/kgoins/hashset v0.1.0/go.mod h1:La39wQwoV2fuwcVhBbROEdyVY+/3lhlVlCb08jd+4Pc=
 github.com/kgoins/hashset v0.2.0 h1:6P/0WVYVqdjivzot83EL21YVj6iDH5H2KoHa+lTU+PE=
 github.com/kgoins/hashset v0.2.0/go.mod h1:La39wQwoV2fuwcVhBbROEdyVY+/3lhlVlCb08jd+4Pc=
-github.com/kgoins/ldapentity v0.1.0 h1:runywoOwbja0YBfD0MnSGbVw37A9Wnae/zotW6eYUSE=
-github.com/kgoins/ldapentity v0.1.0/go.mod h1:FKVT2nDdxT1vto8HbLIEwcN2YSjQ76HhquRq2gnhbY0=
+github.com/kgoins/ldapentity v0.2.0 h1:4DEIiu8gUhxIGOfk6XQRXt4hxF2ZY2O04ZMua7ul5gc=
+github.com/kgoins/ldapentity v0.2.0/go.mod h1:oV3BzNQEePLzghwHaWsDG3koJL6nd+E/Ep+ljNpLyLo=
 github.com/kgoins/poscanner v1.1.0 h1:IFpnvonjA9Txlm9GagW6pPvvK0KkEdFTbFBaKd6oTbo=
 github.com/kgoins/poscanner v1.1.0/go.mod h1:PJutzjm9EpQifKLtzZGhphbMlUMe8vByzh04jRdvSIg=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
@@ -62,8 +64,8 @@ github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaO
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
